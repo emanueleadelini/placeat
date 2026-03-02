@@ -1,0 +1,635 @@
+{
+  "entities": {
+    "Ristorante": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Ristorante",
+      "type": "object",
+      "description": "Represents a restaurant registered in the PLACEAT system, including its profile, account status, subscription details, and core operational configurations.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Ristorante entity."
+        },
+        "nome": {
+          "type": "string",
+          "description": "The official name of the restaurant."
+        },
+        "tipo": {
+          "type": "string",
+          "description": "The type of cuisine or establishment.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "indirizzo": {
+          "type": "string",
+          "description": "The physical address of the restaurant."
+        },
+        "latitude": {
+          "type": "number",
+          "description": "The geographical latitude coordinate of the restaurant's location."
+        },
+        "longitude": {
+          "type": "number",
+          "description": "The geographical longitude coordinate of the restaurant's location."
+        },
+        "telefono": {
+          "type": "string",
+          "description": "The primary contact phone number for the restaurant."
+        },
+        "email": {
+          "type": "string",
+          "description": "The primary contact email address for the restaurant.",
+          "format": "email"
+        },
+        "proprietarioUid": {
+          "type": "string",
+          "description": "Reference to the owner user's UID from the external authentication system. (Relationship: ExternalUser 1:N Ristorante)"
+        },
+        "stato": {
+          "type": "string",
+          "description": "The current account status of the restaurant (e.g., trial, active, past_due, cancelled).",
+          "items": {
+            "type": "string"
+          }
+        },
+        "piano": {
+          "type": "string",
+          "description": "The current subscription plan for the restaurant (e.g., free, pro, multi).",
+          "items": {
+            "type": "string"
+          }
+        },
+        "trialEndsAt": {
+          "type": "string",
+          "description": "The date and time when the trial period for the restaurant's account ends.",
+          "format": "date-time"
+        },
+        "stripeCustomerId": {
+          "type": "string",
+          "description": "Identifier for the customer in Stripe's billing system."
+        },
+        "stripeSubscriptionId": {
+          "type": "string",
+          "description": "Identifier for the active subscription in Stripe's billing system."
+        },
+        "durataTurnoDefault": {
+          "type": "number",
+          "description": "Default duration in minutes for a dining shift or table turnover."
+        },
+        "fusoOrario": {
+          "type": "string",
+          "description": "The IANA time zone identifier for the restaurant (e.g., 'Europe/Rome')."
+        },
+        "reviewFlowConfigurationId": {
+          "type": "string",
+          "description": "Reference to the ReviewFlowConfiguration entity for this restaurant. (Relationship: Ristorante 1:1 ReviewFlowConfiguration)"
+        },
+        "onboardingCompletato": {
+          "type": "boolean",
+          "description": "Indicates if the restaurant's onboarding wizard has been fully completed."
+        },
+        "onboardingStep": {
+          "type": "number",
+          "description": "The current step number in the onboarding wizard (0-4)."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "The date and time when the restaurant entity was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "nome",
+        "tipo",
+        "indirizzo",
+        "latitude",
+        "longitude",
+        "telefono",
+        "email",
+        "proprietarioUid",
+        "stato",
+        "piano",
+        "durataTurnoDefault",
+        "fusoOrario",
+        "onboardingCompletato",
+        "onboardingStep",
+        "createdAt"
+      ]
+    },
+    "ReviewFlowConfiguration": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ReviewFlowConfiguration",
+      "type": "object",
+      "description": "Stores the settings for a restaurant's automated customer review request system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ReviewFlowConfiguration entity. This typically matches the Ristorante ID for a 1:1 relationship."
+        },
+        "ristoranteId": {
+          "type": "string",
+          "description": "Reference to the Ristorante entity this configuration belongs to. (Relationship: Ristorante 1:1 ReviewFlowConfiguration)"
+        },
+        "attivo": {
+          "type": "boolean",
+          "description": "Indicates if the review flow automation is currently active."
+        },
+        "googleLink": {
+          "type": "string",
+          "description": "The direct link to the restaurant's Google My Business review page.",
+          "format": "uri"
+        },
+        "timingInvio": {
+          "type": "number",
+          "description": "The number of hours after a reservation is completed before a review request is sent."
+        },
+        "qrCodeUrl": {
+          "type": "string",
+          "description": "The URL of the generated QR code for direct review submission.",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "ristoranteId",
+        "attivo",
+        "timingInvio"
+      ]
+    },
+    "DailyOpeningHours": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DailyOpeningHours",
+      "type": "object",
+      "description": "Defines a single opening and closing time slot for a specific day of the week for a restaurant.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the DailyOpeningHours entity."
+        },
+        "ristoranteId": {
+          "type": "string",
+          "description": "Reference to the Ristorante entity this opening slot belongs to. (Relationship: Ristorante 1:N DailyOpeningHours)"
+        },
+        "dayOfWeek": {
+          "type": "string",
+          "description": "The day of the week for this opening slot (e.g., 'lunedi', 'martedi')."
+        },
+        "aperto": {
+          "type": "boolean",
+          "description": "Indicates if the restaurant is considered 'open' during this specific time slot."
+        },
+        "dalle": {
+          "type": "string",
+          "description": "The start time of the opening slot (e.g., 'HH:MM')."
+        },
+        "alle": {
+          "type": "string",
+          "description": "The end time of the opening slot (e.g., 'HH:MM')."
+        },
+        "slotIndex": {
+          "type": "number",
+          "description": "An index to order multiple opening slots for the same day (e.g., '1' for morning, '2' for evening)."
+        }
+      },
+      "required": [
+        "id",
+        "ristoranteId",
+        "dayOfWeek",
+        "aperto",
+        "dalle",
+        "alle",
+        "slotIndex"
+      ]
+    },
+    "Tavolo": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Tavolo",
+      "type": "object",
+      "description": "Represents a physical table within a restaurant's floor plan, including its layout coordinates, dimensions, capacity, and status.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Tavolo entity."
+        },
+        "ristoranteId": {
+          "type": "string",
+          "description": "Reference to the Ristorante entity this table belongs to. (Relationship: Ristorante 1:N Tavolo)"
+        },
+        "numero": {
+          "type": "number",
+          "description": "The visible number or identifier for the table within the restaurant."
+        },
+        "tipo": {
+          "type": "string",
+          "description": "The shape type of the table (e.g., 'rotondo', 'rettangolare').",
+          "items": {
+            "type": "string"
+          }
+        },
+        "x": {
+          "type": "number",
+          "description": "The X-coordinate of the table's position on the floor plan canvas."
+        },
+        "y": {
+          "type": "number",
+          "description": "The Y-coordinate of the table's position on the floor plan canvas."
+        },
+        "width": {
+          "type": "number",
+          "description": "The width of the table in canvas units."
+        },
+        "height": {
+          "type": "number",
+          "description": "The height of the table in canvas units."
+        },
+        "rotation": {
+          "type": "number",
+          "description": "The rotation angle of the table in degrees (0-360)."
+        },
+        "raggio": {
+          "type": "number",
+          "description": "The radius of the table in canvas units, applicable only for 'rotondo' tables."
+        },
+        "capienza": {
+          "type": "number",
+          "description": "The maximum number of people (capacity) the table can seat."
+        },
+        "zona": {
+          "type": "string",
+          "description": "The designated zone or area where the table is located (e.g., 'sala', 'dehor').",
+          "items": {
+            "type": "string"
+          }
+        },
+        "attivo": {
+          "type": "boolean",
+          "description": "Indicates if the table is currently active and available for bookings."
+        }
+      },
+      "required": [
+        "id",
+        "ristoranteId",
+        "numero",
+        "tipo",
+        "x",
+        "y",
+        "width",
+        "height",
+        "rotation",
+        "capienza",
+        "zona",
+        "attivo"
+      ]
+    },
+    "Customer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Customer",
+      "type": "object",
+      "description": "Represents a customer who has made a reservation at a restaurant, capturing basic contact information.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Customer entity."
+        },
+        "ristoranteId": {
+          "type": "string",
+          "description": "Reference to the Ristorante entity where this customer made a booking. (Relationship: Ristorante 1:N Customer)"
+        },
+        "nome": {
+          "type": "string",
+          "description": "The full name of the customer."
+        },
+        "telefono": {
+          "type": "string",
+          "description": "The contact phone number of the customer."
+        },
+        "email": {
+          "type": "string",
+          "description": "The contact email address of the customer.",
+          "format": "email"
+        }
+      },
+      "required": [
+        "id",
+        "ristoranteId",
+        "nome",
+        "telefono"
+      ]
+    },
+    "Prenotazione": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Prenotazione",
+      "type": "object",
+      "description": "Represents a specific customer reservation for a table at a restaurant, including all relevant booking details and status.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Prenotazione entity."
+        },
+        "ristoranteId": {
+          "type": "string",
+          "description": "Reference to the Ristorante entity where this reservation was made. (Relationship: Ristorante 1:N Prenotazione)"
+        },
+        "customerId": {
+          "type": "string",
+          "description": "Reference to the Customer entity who made the reservation. (Relationship: Customer 1:N Prenotazione)"
+        },
+        "data": {
+          "type": "string",
+          "description": "The date of the reservation.",
+          "format": "date-time"
+        },
+        "ora": {
+          "type": "string",
+          "description": "The time of the reservation (e.g., 'HH:MM')."
+        },
+        "tavoloId": {
+          "type": "string",
+          "description": "Reference to the Tavolo entity assigned for this reservation. (Relationship: Tavolo 1:N Prenotazione)"
+        },
+        "numeroPersone": {
+          "type": "number",
+          "description": "The total number of people for this reservation."
+        },
+        "stato": {
+          "type": "string",
+          "description": "The current status of the reservation (e.g., 'confermata', 'completata', 'cancellata', 'no-show').",
+          "items": {
+            "type": "string"
+          }
+        },
+        "note": {
+          "type": "string",
+          "description": "Additional notes or special requests for the reservation."
+        },
+        "recensioneInviata": {
+          "type": "boolean",
+          "description": "Indicates if a review request has already been sent for this reservation."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "The date and time when the reservation was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "ristoranteId",
+        "customerId",
+        "data",
+        "ora",
+        "tavoloId",
+        "numeroPersone",
+        "stato",
+        "recensioneInviata",
+        "createdAt"
+      ]
+    },
+    "Muro": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Muro",
+      "type": "object",
+      "description": "Defines a segment of a wall in a restaurant's interactive floor plan.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Muro entity."
+        },
+        "ristoranteId": {
+          "type": "string",
+          "description": "Reference to the Ristorante entity this wall segment belongs to. (Relationship: Ristorante 1:N Muro)"
+        },
+        "pointsX": {
+          "type": "array",
+          "description": "An ordered list of X-coordinates for the points defining the wall segment.",
+          "items": {
+            "type": "number"
+          }
+        },
+        "pointsY": {
+          "type": "array",
+          "description": "An ordered list of Y-coordinates for the points defining the wall segment, corresponding to pointsX.",
+          "items": {
+            "type": "number"
+          }
+        },
+        "spessore": {
+          "type": "number",
+          "description": "The thickness of the wall segment in canvas units."
+        }
+      },
+      "required": [
+        "id",
+        "ristoranteId",
+        "pointsX",
+        "pointsY",
+        "spessore"
+      ]
+    },
+    "Zona": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Zona",
+      "type": "object",
+      "description": "Defines a distinct, colored area (zone) within a restaurant's floor plan, used for logical grouping or visual segmentation.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Zona entity."
+        },
+        "ristoranteId": {
+          "type": "string",
+          "description": "Reference to the Ristorante entity this zone belongs to. (Relationship: Ristorante 1:N Zona)"
+        },
+        "nome": {
+          "type": "string",
+          "description": "The name of the zone (e.g., 'sala', 'dehor', 'terrazza')."
+        },
+        "colore": {
+          "type": "string",
+          "description": "The hexadecimal color code (with opacity) used to visually represent the zone."
+        },
+        "pathX": {
+          "type": "array",
+          "description": "An ordered list of X-coordinates for the points defining the polygon path of the zone.",
+          "items": {
+            "type": "number"
+          }
+        },
+        "pathY": {
+          "type": "array",
+          "description": "An ordered list of Y-coordinates for the points defining the polygon path of the zone, corresponding to pathX.",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "ristoranteId",
+        "nome",
+        "colore",
+        "pathX",
+        "pathY"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/ristoranti/{ristoranteId}",
+        "definition": {
+          "entityName": "Ristorante",
+          "schema": {
+            "$ref": "#/backend/entities/Ristorante"
+          },
+          "description": "Top-level collection for all restaurant profiles. Each document represents a unique restaurant and includes core information, account status, and subscription details. Ownership is defined by 'proprietarioUid'."
+        }
+      },
+      {
+        "path": "/ristoranti/{ristoranteId}/reviewFlowConfiguration",
+        "definition": {
+          "entityName": "ReviewFlowConfiguration",
+          "schema": {
+            "$ref": "#/backend/entities/ReviewFlowConfiguration"
+          },
+          "description": "Subcollection storing the single ReviewFlowConfiguration document for a specific restaurant. The document ID is 'config' for a 1:1 relationship. Includes denormalized 'proprietarioUid' and 'ristoranteIsActive' boolean for authorization independence.",
+          "params": [
+            {
+              "name": "ristoranteId",
+              "description": "Unique identifier of the Ristorante."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/ristoranti/{ristoranteId}/dailyOpeningHours/{dailyOpeningHoursId}",
+        "definition": {
+          "entityName": "DailyOpeningHours",
+          "schema": {
+            "$ref": "#/backend/entities/DailyOpeningHours"
+          },
+          "description": "Subcollection for daily opening hours configuration for a specific restaurant. Allows multiple time slots per day. Includes denormalized 'proprietarioUid' and 'ristoranteIsActive' boolean for authorization independence.",
+          "params": [
+            {
+              "name": "ristoranteId",
+              "description": "Unique identifier of the Ristorante."
+            },
+            {
+              "name": "dailyOpeningHoursId",
+              "description": "Unique identifier for a specific opening hour slot."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/ristoranti/{ristoranteId}/tavoli/{tavoloId}",
+        "definition": {
+          "entityName": "Tavolo",
+          "schema": {
+            "$ref": "#/backend/entities/Tavolo"
+          },
+          "description": "Subcollection defining individual tables within a restaurant's floor plan. Includes denormalized 'proprietarioUid' and 'ristoranteIsActive' boolean for authorization independence.",
+          "params": [
+            {
+              "name": "ristoranteId",
+              "description": "Unique identifier of the Ristorante."
+            },
+            {
+              "name": "tavoloId",
+              "description": "Unique identifier for the table."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/ristoranti/{ristoranteId}/customers/{customerId}",
+        "definition": {
+          "entityName": "Customer",
+          "schema": {
+            "$ref": "#/backend/entities/Customer"
+          },
+          "description": "Subcollection storing customer profiles associated with a specific restaurant. Includes denormalized 'proprietarioUid' and 'ristoranteIsActive' boolean for authorization independence.",
+          "params": [
+            {
+              "name": "ristoranteId",
+              "description": "Unique identifier of the Ristorante."
+            },
+            {
+              "name": "customerId",
+              "description": "Unique identifier for the customer."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/ristoranti/{ristoranteId}/prenotazioni/{prenotazioneId}",
+        "definition": {
+          "entityName": "Prenotazione",
+          "schema": {
+            "$ref": "#/backend/entities/Prenotazione"
+          },
+          "description": "Subcollection for customer reservations made at a specific restaurant. Includes denormalized 'proprietarioUid' and 'ristoranteIsActive' boolean for authorization independence.",
+          "params": [
+            {
+              "name": "ristoranteId",
+              "description": "Unique identifier of the Ristorante."
+            },
+            {
+              "name": "prenotazioneId",
+              "description": "Unique identifier for the reservation."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/ristoranti/{ristoranteId}/muri/{muroId}",
+        "definition": {
+          "entityName": "Muro",
+          "schema": {
+            "$ref": "#/backend/entities/Muro"
+          },
+          "description": "Subcollection for wall segments in a restaurant's interactive floor plan. Includes denormalized 'proprietarioUid' and 'ristoranteIsActive' boolean for authorization independence.",
+          "params": [
+            {
+              "name": "ristoranteId",
+              "description": "Unique identifier of the Ristorante."
+            },
+            {
+              "name": "muroId",
+              "description": "Unique identifier for the wall segment."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/ristoranti/{ristoranteId}/zone/{zonaId}",
+        "definition": {
+          "entityName": "Zona",
+          "schema": {
+            "$ref": "#/backend/entities/Zona"
+          },
+          "description": "Subcollection for defining distinct colored zones within a restaurant's floor plan. Includes denormalized 'proprietarioUid' and 'ristoranteIsActive' boolean for authorization independence.",
+          "params": [
+            {
+              "name": "ristoranteId",
+              "description": "Unique identifier of the Ristorante."
+            },
+            {
+              "name": "zonaId",
+              "description": "Unique identifier for the zone."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure for PLACEAT is designed to prioritize Authorization Independence, Debuggability, and Query-Ability for secure and scalable operations. The core principle applied is **Authorization Independence via Denormalization** (Mandate A), which dictates that security-critical attributes from parent documents (like ownership and active status) must be copied into all relevant subcollection documents. This completely eliminates the need for expensive and complex `get()` calls in security rules, which break atomic operations and hinder debuggability.\n\nThe chosen structure adopts a hierarchical model starting with a top-level `ristoranti` collection, where each document represents a unique restaurant. All related entities (tables, reservations, opening hours, customers, floor plan elements, and review configurations) are stored as subcollections under their respective `ristoranteId`. This leverages **Hierarchical Paths for User-Owned Data** (Mandate C.2), ensuring that data is inherently scoped to a specific restaurant and, by extension, its owner.\n\nTo achieve **Authorization Independence** and support **Query-Able Security Rules (QAPs)**:\n1.  **`proprietarioUid` Denormalization:** The `proprietarioUid` (owner's Firebase UID) from the parent `Ristorante` document is denormalized and stored in *every document* within its subcollections (`reviewFlowConfiguration`, `dailyOpeningHours`, `tavoli`, `customers`, `prenotazioni`, `muri`, `zone`). This allows security rules for subcollections to directly verify ownership by comparing `request.auth.uid` with `resource.data.proprietarioUid` without needing to fetch the parent `Ristorante` document.\n2.  **`ristoranteIsActive` Denormalization:** An `ristoranteIsActive` boolean field is also denormalized into all subcollection documents. This field, derived from the `Ristorante`'s `stato` and `trialEndsAt` status, provides an atomic and easily verifiable status for determining if the restaurant's subscription is active. A Cloud Function would be responsible for updating this field across all relevant subcollection documents whenever the parent `Ristorante`'s status or trial end date changes.\n\nThis denormalization strategy significantly simplifies Firestore security rules, making them highly performant (no cross-document reads), atomic (rules can evaluate based on a single document's state), and extremely debuggable. For example, a rule for a reservation document would simply check `resource.data.proprietarioUid == request.auth.uid && resource.data.ristoranteIsActive == true && resource.data.ristoranteId == ristoranteId` (where `ristoranteId` is from the path wildcard). This directly enables **QAPs** because client-side `list` queries can include `where('proprietarioUid', '==', request.auth.uid)` and `where('ristoranteId', '==', specificRistoranteId)`, ensuring only relevant and authorized data is returned.\n\n**Structural Segregation** (Mandate B) is maintained as each subcollection (`tavoli`, `prenotazioni`, etc.) stores documents of a single entity type with homogeneous security requirements. There is no mixing of public and private data within the same collection.\n\n**Access Modeling** (Mandate C) uses the path-based ownership for restaurant-specific data and continues this hierarchy for all nested entities. **DBAC** (Mandate C.4) is achieved by storing `proprietarioUid` directly in the database, with no reliance on custom claims.\n\n**Data Clarity and Predictability** (Mandate D) is addressed by using explicit state fields like `Ristorante.stato` and `Prenotazione.stato`, and ensuring consistent, semantic naming conventions (e.g., `ristoranteId`, `proprietarioUid`).\n\nOverall, this design ensures a secure, scalable, and easily maintainable Firestore architecture for PLACEAT, adhering to all critical design principles and mandates."
+  }
+}

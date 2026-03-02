@@ -1,0 +1,236 @@
+/**
+ * Core Philosophy:
+ * This ruleset enforces a strict, hierarchical ownership model centered around the 'Ristorante' (Restaurant) entity.
+ * All data is scoped to a specific restaurant and is considered private to the restaurant's owner. The primary security
+ * principle is "Authorization Independence," where authorization decisions for any document can be made by inspecting
+ * that document alone, without needing to read related documents.
+ *
+ * Data Structure:
+ * The data is organized under a single top-level collection: `/ristoranti`. Each document in this collection
+ * represents a unique restaurant owned by a specific user (`proprietarioUid`). All other data entities, such as
+ * tables (`tavoli`), reservations (`prenotazioni`), customers, and settings, are stored in dedicated subcollections
+ * under their parent restaurant document (e.g., `/ristoranti/{ristoranteId}/tavoli/{tavoloId}`).
+ *
+ * Key Security Decisions:
+ * - Strict Ownership: All access (read and write) to a restaurant's data and its subcollections is restricted to the
+ *   authenticated user whose UID matches the `proprietarioUid` field on the documents.
+ * - No Public Data: There are no publicly readable collections. All data is protected.
+ * - Restaurant Listing Disabled: To prevent data scraping and protect restaurant owner privacy, listing the top-level
+ *   `/ristoranti` collection is explicitly disallowed.
+ * - Subcollection Listing Disabled: Listing subcollections is disallowed by default. This is the most secure posture
+ *   because a `list` operation's rules cannot inspect document fields without performing costly and slow `get()` calls,
+ *   which are explicitly avoided in this architecture. Clients are expected to fetch documents by their known IDs.
+ *
+ * Denormalization for Authorization:
+ * To ensure fast, secure, and independent authorization checks, the owner's user ID (`proprietarioUid`) is denormalized
+ * (copied) from the parent `/ristoranti/{ristoranteId}` document into every single document within its subcollections.
+ * This allows rules to verify ownership with a simple field check (`resource.data.proprietarioUid == request.auth.uid`)
+ * instead of a slow, cross-document `get()` call.
+ *
+ * Structural Segregation:
+ * The data model naturally segregates data by type into distinct collections (e.g., `tavoli`, `prenotazioni`). This
+ * ensures that a single security rule definition applies uniformly to all documents within that collection, simplifying
+ * logic and improving security.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --------------------------------
+    // Helper Functions
+    // --------------------------------
+
+    /**
+     * Checks if a user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the currently authenticated user is the owner of the document being created.
+     * Compares the auth UID with the 'proprietarioUid' field in the incoming request data.
+     */
+    function isRequestingOwner(docData) {
+      return isSignedIn() && docData.proprietarioUid == request.auth.uid;
+    }
+
+    /**
+     * Checks if the currently authenticated user is the owner of an existing document.
+     * Compares the auth UID with the 'proprietarioUid' field in the stored resource.
+     */
+    function isResourceOwner(doc) {
+      return isSignedIn() && doc.data.proprietarioUid == request.auth.uid;
+    }
+
+    /**
+     * Ensures a document exists before checking ownership.
+     * Used for safe update and delete operations.
+     */
+    function isExistingResourceOwner(doc) {
+      return doc != null && isResourceOwner(doc);
+    }
+
+    /**
+     * Validates that the owner ID field cannot be changed during an update.
+     */
+    function isOwnerIdImmutable(doc) {
+      return request.resource.data.proprietarioUid == doc.data.proprietarioUid;
+    }
+
+    /**
+     * On create, validates that the document's internal `ristoranteId` field
+     * matches the `ristoranteId` from the path, ensuring relational integrity.
+     */
+    function isParentRistoranteOnCreate(ristoranteId) {
+      return request.resource.data.ristoranteId == ristoranteId;
+    }
+
+    /**
+     * On update, ensures the document's `ristoranteId` field is immutable.
+     */
+    function isParentRistoranteImmutable(doc) {
+      return request.resource.data.ristoranteId == doc.data.ristoranteId;
+    }
+
+    // --------------------------------
+    // Collection Rules
+    // --------------------------------
+
+    /**
+     * @description Secures the top-level restaurant profiles.
+     * @path /ristoranti/{ristoranteId}
+     * @allow A restaurant owner (create, get, update, delete) their own document.
+     *        e.g., (update) User 'owner123' can write to `/ristoranti/resto-abc` if that doc contains `proprietarioUid: 'owner123'`.
+     * @deny Any user (list) the entire `/ristoranti` collection.
+     *       e.g., (get) User 'other456' is denied access to `/ristoranti/resto-abc`.
+     * @principle Enforces strict document ownership and prevents collection enumeration to protect all restaurant data.
+     */
+    match /ristoranti/{ristoranteId} {
+      allow get: if isResourceOwner(resource);
+      allow list: if false;
+      allow create: if isRequestingOwner(request.resource.data);
+      allow update: if isExistingResourceOwner(resource) && isOwnerIdImmutable(resource);
+      allow delete: if isExistingResourceOwner(resource);
+
+      /**
+       * @description Secures the restaurant's review flow configuration document.
+       * @path /ristoranti/{ristoranteId}/reviewFlowConfiguration/{reviewFlowConfigId}
+       * @allow The restaurant owner (create, get, update, delete) their own configuration.
+       *        e.g., (get) User 'owner123' can read `/ristoranti/resto-abc/reviewFlowConfiguration/config` if the doc has `proprietarioUid: 'owner123'`.
+       * @deny Another user from reading or writing the configuration.
+       *       e.g., (update) User 'other456' cannot write to the document.
+       * @principle Relies on the denormalized `proprietarioUid` field for fast, independent authorization on subcollection documents.
+       */
+      match /reviewFlowConfiguration/{reviewFlowConfigId} {
+        allow get: if isResourceOwner(resource);
+        allow list: if false;
+        allow create: if isRequestingOwner(request.resource.data) && isParentRistoranteOnCreate(ristoranteId);
+        allow update: if isExistingResourceOwner(resource) && isOwnerIdImmutable(resource) && isParentRistoranteImmutable(resource);
+        allow delete: if isExistingResourceOwner(resource);
+      }
+
+      /**
+       * @description Secures the daily opening hours for a restaurant.
+       * @path /ristoranti/{ristoranteId}/dailyOpeningHours/{dailyOpeningHoursId}
+       * @allow The restaurant owner (create, get, update, delete) their opening hours.
+       *        e.g., (create) User 'owner123' can create a new opening hour document if the new data includes `proprietarioUid: 'owner123'`.
+       * @deny Another user from accessing the opening hours.
+       *       e.g., (list) Any user is denied from listing all opening hours for a restaurant.
+       * @principle Relies on the denormalized `proprietarioUid` field for fast, independent authorization on subcollection documents.
+       */
+      match /dailyOpeningHours/{dailyOpeningHoursId} {
+        allow get: if isResourceOwner(resource);
+        allow list: if false;
+        allow create: if isRequestingOwner(request.resource.data) && isParentRistoranteOnCreate(ristoranteId);
+        allow update: if isExistingResourceOwner(resource) && isOwnerIdImmutable(resource) && isParentRistoranteImmutable(resource);
+        allow delete: if isExistingResourceOwner(resource);
+      }
+
+      /**
+       * @description Secures the restaurant's table definitions for the floor plan.
+       * @path /ristoranti/{ristoranteId}/tavoli/{tavoloId}
+       * @allow The restaurant owner (create, get, update, delete) their own tables.
+       *        e.g., (update) User 'owner123' can update a table doc if it has `proprietarioUid: 'owner123'`.
+       * @deny Another user from modifying table data.
+       *       e.g., (delete) User 'other456' cannot delete a table document.
+       * @principle Relies on the denormalized `proprietarioUid` field for fast, independent authorization on subcollection documents.
+       */
+      match /tavoli/{tavoloId} {
+        allow get: if isResourceOwner(resource);
+        allow list: if false;
+        allow create: if isRequestingOwner(request.resource.data) && isParentRistoranteOnCreate(ristoranteId);
+        allow update: if isExistingResourceOwner(resource) && isOwnerIdImmutable(resource) && isParentRistoranteImmutable(resource);
+        allow delete: if isExistingResourceOwner(resource);
+      }
+
+      /**
+       * @description Secures customer data associated with a restaurant.
+       * @path /ristoranti/{ristoranteId}/customers/{customerId}
+       * @allow The restaurant owner (create, get, update, delete) their customer list.
+       *        e.g., (get) User 'owner123' can read a customer doc if it has `proprietarioUid: 'owner123'`.
+       * @deny Any other user from accessing customer information.
+       *       e.g., (get) User 'other456' is denied access to any customer document.
+       * @principle Relies on the denormalized `proprietarioUid` field for fast, independent authorization on subcollection documents.
+       */
+      match /customers/{customerId} {
+        allow get: if isResourceOwner(resource);
+        allow list: if false;
+        allow create: if isRequestingOwner(request.resource.data) && isParentRistoranteOnCreate(ristoranteId);
+        allow update: if isExistingResourceOwner(resource) && isOwnerIdImmutable(resource) && isParentRistoranteImmutable(resource);
+        allow delete: if isExistingResourceOwner(resource);
+      }
+
+      /**
+       * @description Secures reservation data for a restaurant.
+       * @path /ristoranti/{ristoranteId}/prenotazioni/{prenotazioneId}
+       * @allow The restaurant owner (create, get, update, delete) their reservations.
+       *        e.g., (create) User 'owner123' can add a reservation if the new data has `proprietarioUid: 'owner123'`.
+       * @deny Another user from viewing or modifying reservations.
+       *       e.g., (list) Listing all reservations is denied for all users.
+       * @principle Relies on the denormalized `proprietarioUid` field for fast, independent authorization on subcollection documents.
+       */
+      match /prenotazioni/{prenotazioneId} {
+        allow get: if isResourceOwner(resource);
+        allow list: if false;
+        allow create: if isRequestingOwner(request.resource.data) && isParentRistoranteOnCreate(ristoranteId);
+        allow update: if isExistingResourceOwner(resource) && isOwnerIdImmutable(resource) && isParentRistoranteImmutable(resource);
+        allow delete: if isExistingResourceOwner(resource);
+      }
+
+      /**
+       * @description Secures the floor plan wall segments for a restaurant.
+       * @path /ristoranti/{ristoranteId}/muri/{muroId}
+       * @allow The restaurant owner (create, get, update, delete) the wall segments of their floor plan.
+       *        e.g., (delete) User 'owner123' can delete a wall segment if the doc has `proprietarioUid: 'owner123'`.
+       * @deny Any other user from altering the floor plan.
+       *       e.g., (update) User 'other456' cannot update a wall segment document.
+       * @principle Relies on the denormalized `proprietarioUid` field for fast, independent authorization on subcollection documents.
+       */
+      match /muri/{muroId} {
+        allow get: if isResourceOwner(resource);
+        allow list: if false;
+        allow create: if isRequestingOwner(request.resource.data) && isParentRistoranteOnCreate(ristoranteId);
+        allow update: if isExistingResourceOwner(resource) && isOwnerIdImmutable(resource) && isParentRistoranteImmutable(resource);
+        allow delete: if isExistingResourceOwner(resource);
+      }
+
+      /**
+       * @description Secures the floor plan zone definitions for a restaurant.
+       * @path /ristoranti/{ristoranteId}/zone/{zonaId}
+       * @allow The restaurant owner (create, get, update, delete) the zones of their floor plan.
+       *        e.g., (get) User 'owner123' can read a zone document if it contains `proprietarioUid: 'owner123'`.
+       * @deny Any other user from accessing the floor plan zones.
+       *       e.g., (get) User 'other456' is denied access.
+       * @principle Relies on the denormalized `proprietarioUid` field for fast, independent authorization on subcollection documents.
+       */
+      match /zone/{zonaId} {
+        allow get: if isResourceOwner(resource);
+        allow list: if false;
+        allow create: if isRequestingOwner(request.resource.data) && isParentRistoranteOnCreate(ristoranteId);
+        allow update: if isExistingResourceOwner(resource) && isOwnerIdImmutable(resource) && isParentRistoranteImmutable(resource);
+        allow delete: if isExistingResourceOwner(resource);
+      }
+    }
+  }
+}
