@@ -3,8 +3,6 @@ import { useState } from 'react';
 import {
   MousePointer,
   PenLine,
-  Minus,
-  Circle,
   RectangleHorizontal,
   Pentagon,
   ZoomIn,
@@ -61,27 +59,80 @@ const Table = ({ x, y, width, height, rotation, type, number, capienza, selected
 
 
 export function FloorPlanEditor() {
-    const [tables, setTables] = useState([
-        { id: 1, x: 300, y: 300, width: 70, height: 70, rotation: 0, type: 'rotondo', number: 1, capienza: 2 },
-        { id: 2, x: 500, y: 350, width: 120, height: 80, rotation: 0, type: 'rettangolare', number: 2, capienza: 4 },
-        { id: 3, x: 700, y: 300, width: 90, height: 90, rotation: 45, type: 'rotondo', number: 3, capienza: 4 },
-        { id: 4, x: 450, y: 600, width: 180, height: 90, rotation: 90, type: 'rettangolare', number: 4, capienza: 6 },
-    ]);
-    const [walls, setWalls] = useState([
-        [{x: 100, y: 100}, {x: 900, y: 100}],
-        [{x: 100, y: 100}, {x: 100, y: 800}],
-    ]);
-    const [selectedTable, setSelectedTable] = useState<number | null>(2);
+    const [tool, setTool] = useState('select');
+    const [tables, setTables] = useState<any[]>([]);
+    const [walls, setWalls] = useState<{x: number, y:number}[][]>([]);
+    const [isDrawing, setIsDrawing] = useState(false);
+    const [newWall, setNewWall] = useState<{x: number, y:number}[] | null>(null);
+    const [selectedElement, setSelectedElement] = useState<string | null>(null);
 
-    const handleTableClick = (id: number) => {
-        setSelectedTable(id);
+    const getMousePosition = (evt: React.MouseEvent) => {
+        const svg = evt.currentTarget as SVGSVGElement;
+        const CTM = svg.getScreenCTM();
+        if (CTM) {
+            return {
+                x: (evt.clientX - CTM.e) / CTM.a,
+                y: (evt.clientY - CTM.f) / CTM.d
+            };
+        }
+        return { x: 0, y: 0 };
+    };
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        const pos = getMousePosition(e);
+
+        if (tool === 'wall') {
+            setIsDrawing(true);
+            setNewWall([{ ...pos }, { ...pos }]);
+        } else if (tool === 'table') {
+            const newTable = {
+                id: `table-${tables.length + 1}`,
+                x: pos.x,
+                y: pos.y,
+                width: 80,
+                height: 80,
+                rotation: 0,
+                type: 'rettangolare',
+                number: tables.length + 1,
+                capienza: 2,
+            };
+            setTables(prev => [...prev, newTable]);
+            setTool('select');
+        } else if (tool === 'select') {
+            if (e.target === e.currentTarget) {
+                 setSelectedElement(null);
+            }
+        }
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!isDrawing || tool !== 'wall' || !newWall) return;
+        const pos = getMousePosition(e);
+        setNewWall([newWall[0], { ...pos }]);
+    };
+
+    const handleMouseUp = (e: React.MouseEvent) => {
+        if (!isDrawing || tool !== 'wall' || !newWall) return;
+        setIsDrawing(false);
+        const dx = newWall[1].x - newWall[0].x;
+        const dy = newWall[1].y - newWall[0].y;
+        if (Math.sqrt(dx*dx + dy*dy) > 5) {
+            setWalls(prevWalls => [...prevWalls, newWall]);
+        }
+        setNewWall(null);
+    };
+
+    const handleTableClick = (id: string) => {
+        if (tool === 'select') {
+            setSelectedElement(id);
+        }
     }
   
   return (
     <TooltipProvider>
     <div className="w-full h-full bg-muted/30 flex relative">
       <div className="absolute top-2 left-2 z-10 bg-card p-2 rounded-lg shadow-md border flex gap-1">
-        <ToggleGroup type="single" defaultValue="select" size="sm">
+        <ToggleGroup type="single" value={tool} onValueChange={(value) => value && setTool(value)} size="sm">
             <Tooltip>
                 <TooltipTrigger asChild>
                     <ToggleGroupItem value="select" aria-label="Select"><MousePointer className="w-4 h-4"/></ToggleGroupItem>
@@ -172,7 +223,7 @@ export function FloorPlanEditor() {
             </ToggleGroup>
        </div>
 
-      <svg width="100%" height="100%" viewBox="0 0 2000 2000">
+      <svg width="100%" height="100%" viewBox="0 0 2000 2000" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
         <defs>
             <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
                 <path d="M 20 0 L 0 0 0 20" fill="none" stroke="hsl(var(--border))" strokeWidth="0.5"/>
@@ -181,22 +232,21 @@ export function FloorPlanEditor() {
         <rect width="2000" height="2000" fill="url(#grid)" />
         <rect width="2000" height="2000" fill="transparent" />
 
-        {/* Zones */}
-        <polygon points="120,120 880,120 880,450 600,500 120,500" className="fill-blue-500/20 stroke-blue-500/50" />
-        <text x="500" y="300" textAnchor="middle" className="fill-blue-800/50 font-bold text-4xl select-none">SALA</text>
-
-
         {/* Walls */}
         {walls.map((wall, index) => (
             <line key={index} x1={wall[0].x} y1={wall[0].y} x2={wall[1].x} y2={wall[1].y} strokeWidth="10" className="stroke-foreground" strokeLinecap="round" />
         ))}
+
+        {newWall && (
+             <line x1={newWall[0].x} y1={newWall[0].y} x2={newWall[1].x} y2={newWall[1].y} strokeWidth="10" className="stroke-primary" strokeLinecap="round" />
+        )}
 
         {/* Tables */}
         {tables.map(table => (
             <Table 
                 key={table.id}
                 {...table}
-                selected={selectedTable === table.id}
+                selected={selectedElement === table.id}
                 onClick={() => handleTableClick(table.id)}
             />
         ))}
