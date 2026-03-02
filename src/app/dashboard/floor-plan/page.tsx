@@ -40,7 +40,7 @@ export default function FloorPlanPage() {
                         </div>
                         <div>
                             <h3 className="font-semibold flex items-center gap-2"><Layers className="w-4 h-4 text-muted-foreground" /> Definisci le Zone</h3>
-                            <p className="text-sm text-muted-foreground mt-1">Usa lo strumento "Zona" per creare aree distinte come 'Sala principale', 'Terrazzo' o 'Sala privata'.</p>
+                            <p className="text-sm text-muted-foreground mt-1">Usa lo strumento "Zona", disegna le aree e assegna un nome (es. 'Sala principale', 'Terrazzo') dal pannello delle proprietà.</p>
                         </div>
                     </div>
                     <div className="flex gap-4 items-start">

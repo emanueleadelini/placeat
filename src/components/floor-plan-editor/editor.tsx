@@ -4,7 +4,7 @@ import {
   MousePointer,
   PenLine,
   RectangleHorizontal,
-  Pentagon,
+  Layers,
   ZoomIn,
   ZoomOut,
   Undo2,
@@ -74,69 +74,93 @@ const Table = ({ x, y, width, height, rotation, type, number, capienza, selected
   );
 };
 
-const PropertiesPanel = ({ selectedTable, onUpdate, onDelete }: any) => {
-    if (!selectedTable) {
+const PropertiesPanel = ({ selectedTable, selectedZone, onUpdateTable, onDeleteTable, onUpdateZone, onDeleteZone }: any) => {
+    if (selectedTable) {
+        const handleCapacityChange = (amount: number) => {
+            const newCapacity = Math.max(1, selectedTable.capienza + amount);
+            onUpdateTable(selectedTable.id, { capienza: newCapacity });
+        };
+
+        const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            const { name, value } = e.target;
+            onUpdateTable(selectedTable.id, { [name]: name === 'numero' ? parseInt(value) || '' : value });
+        };
+        
+        const handleSelectChange = (value: string) => {
+            onUpdateTable(selectedTable.id, { tipo: value });
+        };
         return (
-             <div className="absolute top-0 right-0 z-10 bg-card h-full w-64 p-4 border-l flex flex-col items-center justify-center text-center">
-                <MousePointer className="w-10 h-10 text-muted-foreground mb-4"/>
-                <p className="text-sm text-muted-foreground">Seleziona un elemento per vederne le proprietà.</p>
+            <div className="absolute top-0 right-0 z-10 bg-card h-full w-64 p-4 border-l shadow-lg">
+                <h3 className="font-semibold text-lg mb-6">Proprietà Tavolo</h3>
+                <div className="grid gap-4">
+                    <div>
+                        <Label htmlFor="table-number">Numero Tavolo</Label>
+                        <Input id="table-number" name="numero" type="number" value={selectedTable.numero} onChange={handleInputChange} />
+                    </div>
+                    <div>
+                        <Label>Capienza</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleCapacityChange(-1)}>
+                                <Minus className="h-4 w-4" />
+                            </Button>
+                            <span className="font-bold text-lg w-8 text-center">{selectedTable.capienza}</span>
+                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleCapacityChange(1)}>
+                                <Plus className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                     <div>
+                        <Label htmlFor="table-type">Forma</Label>
+                         <Select value={selectedTable.tipo} onValueChange={handleSelectChange}>
+                            <SelectTrigger id="table-type">
+                                <SelectValue placeholder="Seleziona tipo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="rettangolare">Rettangolare</SelectItem>
+                                <SelectItem value="rotondo">Rotondo</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <Button variant="outline" className="mt-6" onClick={() => onDeleteTable(selectedTable.id)}>
+                        <Trash2 className="mr-2 h-4 w-4 text-destructive"/>
+                        <span className="text-destructive">Elimina Tavolo</span>
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+    
+    if (selectedZone) {
+         return (
+            <div className="absolute top-0 right-0 z-10 bg-card h-full w-64 p-4 border-l shadow-lg">
+                <h3 className="font-semibold text-lg mb-6">Proprietà Zona</h3>
+                <div className="grid gap-4">
+                    <div>
+                        <Label htmlFor="zone-name">Nome Zona</Label>
+                        <Input id="zone-name" name="nome" value={selectedZone.nome} onChange={(e) => onUpdateZone(selectedZone.id, { nome: e.target.value })} />
+                    </div>
+                    <div>
+                        <Label htmlFor="zone-color">Colore</Label>
+                        <Input id="zone-color" name="colore" type="color" value={selectedZone.colore.substring(0, 7)} onChange={(e) => onUpdateZone(selectedZone.id, { colore: `${e.target.value}4D` })} />
+                    </div>
+                    <Button variant="outline" className="mt-6" onClick={() => onDeleteZone(selectedZone.id)}>
+                        <Trash2 className="mr-2 h-4 w-4 text-destructive"/>
+                        <span className="text-destructive">Elimina Zona</span>
+                    </Button>
+                </div>
             </div>
         )
-    };
-
-    const handleCapacityChange = (amount: number) => {
-        const newCapacity = Math.max(1, selectedTable.capienza + amount);
-        onUpdate(selectedTable.id, { capienza: newCapacity });
-    };
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        onUpdate(selectedTable.id, { [name]: name === 'numero' ? parseInt(value) || '' : value });
-    };
-    
-    const handleSelectChange = (value: string) => {
-        onUpdate(selectedTable.id, { tipo: value });
-    };
+    }
 
     return (
-        <div className="absolute top-0 right-0 z-10 bg-card h-full w-64 p-4 border-l shadow-lg">
-            <h3 className="font-semibold text-lg mb-6">Proprietà Tavolo</h3>
-            <div className="grid gap-4">
-                <div>
-                    <Label htmlFor="table-number">Numero Tavolo</Label>
-                    <Input id="table-number" name="numero" type="number" value={selectedTable.numero} onChange={handleInputChange} />
-                </div>
-                <div>
-                    <Label>Capienza</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleCapacityChange(-1)}>
-                            <Minus className="h-4 w-4" />
-                        </Button>
-                        <span className="font-bold text-lg w-8 text-center">{selectedTable.capienza}</span>
-                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleCapacityChange(1)}>
-                            <Plus className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </div>
-                 <div>
-                    <Label htmlFor="table-type">Forma</Label>
-                     <Select value={selectedTable.tipo} onValueChange={handleSelectChange}>
-                        <SelectTrigger id="table-type">
-                            <SelectValue placeholder="Seleziona tipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="rettangolare">Rettangolare</SelectItem>
-                            <SelectItem value="rotondo">Rotondo</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <Button variant="outline" className="mt-6" onClick={() => onDelete(selectedTable.id)}>
-                    <Trash2 className="mr-2 h-4 w-4 text-destructive"/>
-                    <span className="text-destructive">Elimina Tavolo</span>
-                </Button>
-            </div>
+         <div className="absolute top-0 right-0 z-10 bg-card h-full w-64 p-4 border-l flex flex-col items-center justify-center text-center">
+            <MousePointer className="w-10 h-10 text-muted-foreground mb-4"/>
+            <p className="text-sm text-muted-foreground">Seleziona un elemento per vederne le proprietà.</p>
+            <p className="text-xs text-muted-foreground mt-4 pt-4 border-t w-full">
+                Per creare una zona, seleziona <Layers className="inline w-3 h-3"/>, clicca sulla tela per aggiungere punti e fai doppio click per finire.
+            </p>
         </div>
-    );
+    )
 };
 
 
@@ -144,8 +168,11 @@ export function FloorPlanEditor() {
     const [tool, setTool] = useState('select');
     const [tables, setTables] = useState<any[]>([]);
     const [walls, setWalls] = useState<{x: number, y:number}[][]>([]);
-    const [isDrawing, setIsDrawing] = useState(false);
+    const [zones, setZones] = useState<any[]>([]);
+    const [isDrawingWall, setIsDrawingWall] = useState(false);
     const [newWall, setNewWall] = useState<{x: number, y:number}[] | null>(null);
+    const [isDrawingZone, setIsDrawingZone] = useState(false);
+    const [newZonePoints, setNewZonePoints] = useState<{x: number, y:number}[]>([]);
     const [selectedElement, setSelectedElement] = useState<string | null>(null);
 
     const getMousePosition = (evt: React.MouseEvent) => {
@@ -162,13 +189,16 @@ export function FloorPlanEditor() {
 
     const handleMouseDown = (e: React.MouseEvent) => {
         const pos = getMousePosition(e);
+        
+        if (e.target !== e.currentTarget && tool !== 'zone') return;
+
 
         if (tool === 'wall') {
-            setIsDrawing(true);
+            setIsDrawingWall(true);
             setNewWall([{ ...pos }, { ...pos }]);
         } else if (tool === 'table') {
             const newTable = {
-                id: `table-${tables.length + 1}`,
+                id: `table-${Date.now()}`,
                 x: pos.x,
                 y: pos.y,
                 width: 80,
@@ -181,6 +211,9 @@ export function FloorPlanEditor() {
             setTables(prev => [...prev, newTable]);
             setSelectedElement(newTable.id);
             setTool('select');
+        } else if (tool === 'zone') {
+            setIsDrawingZone(true);
+            setNewZonePoints(prev => [...prev, pos]);
         } else if (tool === 'select') {
             if (e.target === e.currentTarget) {
                  setSelectedElement(null);
@@ -189,14 +222,14 @@ export function FloorPlanEditor() {
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
-        if (!isDrawing || tool !== 'wall' || !newWall) return;
+        if (!isDrawingWall || tool !== 'wall' || !newWall) return;
         const pos = getMousePosition(e);
         setNewWall([newWall[0], { ...pos }]);
     };
 
     const handleMouseUp = (e: React.MouseEvent) => {
-        if (!isDrawing || tool !== 'wall' || !newWall) return;
-        setIsDrawing(false);
+        if (!isDrawingWall || tool !== 'wall' || !newWall) return;
+        setIsDrawingWall(false);
         const dx = newWall[1].x - newWall[0].x;
         const dy = newWall[1].y - newWall[0].y;
         if (Math.sqrt(dx*dx + dy*dy) > 5) {
@@ -205,13 +238,31 @@ export function FloorPlanEditor() {
         setNewWall(null);
     };
 
-    const handleTableClick = (id: string) => {
+    const handleDoubleClick = (e: React.MouseEvent) => {
+        if (tool === 'zone' && isDrawingZone && newZonePoints.length > 2) {
+            setIsDrawingZone(false);
+            const newZone = {
+                id: `zone-${Date.now()}`,
+                path: newZonePoints,
+                nome: `Zona ${zones.length + 1}`,
+                colore: '#80b3ff4D',
+            };
+            setZones(prev => [...prev, newZone]);
+            setNewZonePoints([]);
+            setSelectedElement(newZone.id);
+            setTool('select');
+        }
+    }
+
+    const handleElementClick = (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
         if (tool === 'select') {
             setSelectedElement(id);
         }
     }
     
     const selectedTable = tables.find(t => t.id === selectedElement);
+    const selectedZone = zones.find(z => z.id === selectedElement);
 
     const updateTable = (id: string, updatedProps: any) => {
         setTables(currentTables => 
@@ -221,6 +272,17 @@ export function FloorPlanEditor() {
 
     const deleteTable = (id: string) => {
         setTables(currentTables => currentTables.filter(t => t.id !== id));
+        setSelectedElement(null);
+    }
+
+    const updateZone = (id: string, updatedProps: any) => {
+        setZones(currentZones => 
+            currentZones.map(z => z.id === id ? { ...z, ...updatedProps } : z)
+        );
+    };
+
+    const deleteZone = (id: string) => {
+        setZones(currentZones => currentZones.filter(z => z.id !== id));
         setSelectedElement(null);
     }
   
@@ -249,7 +311,7 @@ export function FloorPlanEditor() {
             </Tooltip>
              <Tooltip>
                 <TooltipTrigger asChild>
-                    <ToggleGroupItem value="zone" aria-label="Draw Zone"><Pentagon className="w-4 h-4"/></ToggleGroupItem>
+                    <ToggleGroupItem value="zone" aria-label="Draw Zone"><Layers className="w-4 h-4"/></ToggleGroupItem>
                 </TooltipTrigger>
                 <TooltipContent>Disegna Zona (Z)</TooltipContent>
             </Tooltip>
@@ -306,7 +368,7 @@ export function FloorPlanEditor() {
             </ToggleGroup>
        </div>
 
-      <svg className="flex-1" viewBox="0 0 2000 2000" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
+      <svg className="flex-1" viewBox="0 0 2000 2000" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onDoubleClick={handleDoubleClick}>
         <defs>
             <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
                 <path d="M 20 0 L 0 0 0 20" fill="none" stroke="hsl(var(--border))" strokeWidth="0.5"/>
@@ -314,6 +376,35 @@ export function FloorPlanEditor() {
         </defs>
         <rect width="2000" height="2000" fill="url(#grid)" />
         <rect width="2000" height="2000" fill="transparent" />
+        
+        {/* Zones */}
+        {zones.map(zone => (
+            <polygon
+                key={zone.id}
+                points={zone.path.map((p: any) => `${p.x},${p.y}`).join(' ')}
+                fill={zone.colore}
+                stroke={selectedElement === zone.id ? 'hsl(var(--primary))' : zone.colore.replace(/[\d\.]+\)$/, '1)')}
+                strokeWidth={selectedElement === zone.id ? 3 : 2}
+                onClick={(e) => handleElementClick(e, zone.id)}
+                className="cursor-pointer"
+            />
+        ))}
+
+        {/* Preview of new zone */}
+        {isDrawingZone && newZonePoints.length > 0 && (
+            <>
+                <polyline
+                    points={newZonePoints.map(p => `${p.x},${p.y}`).join(' ')}
+                    fill="none"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth="2"
+                    strokeDasharray="4 4"
+                />
+                {newZonePoints.map((p, i) => (
+                    <circle key={i} cx={p.x} cy={p.y} r="4" fill={i === 0 ? "hsl(var(--primary))" : "white"} stroke="hsl(var(--primary))" strokeWidth="2" />
+                ))}
+            </>
+        )}
 
         {/* Walls */}
         {walls.map((wall, index) => (
@@ -330,13 +421,20 @@ export function FloorPlanEditor() {
                 key={table.id}
                 {...table}
                 selected={selectedElement === table.id}
-                onClick={() => handleTableClick(table.id)}
+                onClick={(e: React.MouseEvent) => handleElementClick(e, table.id)}
             />
         ))}
 
       </svg>
       
-      <PropertiesPanel selectedTable={selectedTable} onUpdate={updateTable} onDelete={deleteTable} />
+      <PropertiesPanel 
+        selectedTable={selectedTable}
+        selectedZone={selectedZone}
+        onUpdateTable={updateTable}
+        onDeleteTable={deleteTable}
+        onUpdateZone={updateZone}
+        onDeleteZone={deleteZone}
+       />
     </div>
     </TooltipProvider>
   );
