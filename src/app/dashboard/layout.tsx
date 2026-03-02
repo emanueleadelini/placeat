@@ -139,10 +139,16 @@ export default function DashboardLayout({
               <DropdownMenuSeparator />
               <DropdownMenuItem><User className="mr-2 h-4 w-4" />Profilo</DropdownMenuItem>
               <DropdownMenuItem><Settings className="mr-2 h-4 w-4" />Impostazioni</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut}><LogOut className="mr-2 h-4 w-4" />Esci</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <SidebarMenu>
+            <SidebarMenuItem>
+                <SidebarMenuButton onClick={handleSignOut} tooltip="Esci">
+                    <LogOut />
+                    <span>Esci</span>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
@@ -160,5 +166,4 @@ export default function DashboardLayout({
     </SidebarProvider>
   );
 }
-
     
