@@ -80,7 +80,16 @@ const PropertiesPanel = ({ selectedTable, selectedZone, onUpdateTable, onDeleteT
 
         const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             const { name, value } = e.target;
-            onUpdateTable(selectedTable.id, { [name]: name === 'numero' ? parseInt(value) || '' : value });
+            if (name === "numero") {
+                const parsed = parseInt(value, 10);
+                if (!isNaN(parsed)) {
+                    onUpdateTable(selectedTable.id, { numero: parsed });
+                } else if (value === '') {
+                    onUpdateTable(selectedTable.id, { numero: '' });
+                }
+            } else {
+                onUpdateTable(selectedTable.id, { [name]: value });
+            }
         };
         
         const handleSelectChange = (value: string) => {
@@ -92,7 +101,7 @@ const PropertiesPanel = ({ selectedTable, selectedZone, onUpdateTable, onDeleteT
                 <div className="grid gap-4">
                     <div>
                         <Label htmlFor="table-number">Numero Tavolo</Label>
-                        <Input id="table-number" name="numero" type="number" value={selectedTable.numero} onChange={handleInputChange} />
+                        <Input id="table-number" name="numero" type="number" value={selectedTable.numero ?? ''} onChange={handleInputChange} />
                     </div>
                     <div>
                         <Label>Capienza</Label>
@@ -284,7 +293,7 @@ export function FloorPlanEditor() {
                     height: 80,
                     rotation: 0,
                     type: 'rettangolare',
-                    number: tables.length + 1,
+                    numero: tables.length + 1,
                     capienza: 4,
                 };
                 setTables(prev => [...prev, newTable]);
