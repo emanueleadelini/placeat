@@ -9,11 +9,8 @@ import {
   ZoomOut,
   Undo2,
   Redo2,
-  Save,
   MonitorPlay,
   Grid3x3,
-  Users,
-  Hash,
   Plus,
   Minus,
   Trash2,
@@ -62,11 +59,11 @@ const Table = ({ x, y, width, height, rotation, type, number, capienza, selected
       {selected && (
         <>
             {/* Resize handle */}
-            <rect x={width/2 - 5} y={height/2 - 5} width="10" height="10" className="fill-primary stroke-primary-foreground stroke-2" cursor="nwse-resize" />
+            <rect x={width/2 - 5} y={height/2 - 5} width="10" height="10" className="fill-primary stroke-primary-foreground stroke-2 resize-handle" cursor="nwse-resize" />
             {/* Rotate handle */}
-            <g transform={`translate(0, ${-height/2 - 15})`}>
-                <line x1="0" y1="0" x2="0" y2="10" className="stroke-primary" />
-                <circle cx="0" cy="0" r="5" className="fill-primary" cursor="grab" />
+            <g transform={`translate(0, ${-height/2 - 20})`}>
+                <line x1="0" y1="0" x2="0" y2="15" className="stroke-primary pointer-events-none" />
+                <circle cx="0" cy="0" r="5" className="fill-primary rotate-handle" cursor="grab" />
             </g>
         </>
       )}
@@ -181,6 +178,8 @@ export function FloorPlanEditor() {
         id: null as string | null,
         offsetX: 0,
         offsetY: 0,
+        initialAngle: 0,
+        initialRotation: 0,
     });
 
     const getMousePosition = (evt: React.MouseEvent) => {
@@ -199,9 +198,48 @@ export function FloorPlanEditor() {
     const handleMouseDown = (e: React.MouseEvent) => {
         const pos = getMousePosition(e);
         const target = e.target as SVGElement;
+        const targetClass = target.getAttribute('class') || '';
 
         if (tool === 'select') {
             const tableGroup = target.closest('.table-group');
+
+            if (targetClass.includes('rotate-handle')) {
+                const id = tableGroup?.id;
+                if (!id) return;
+                const table = tables.find(t => t.id === id);
+                if (!table) return;
+
+                const dx = pos.x - table.x;
+                const dy = pos.y - table.y;
+                const initialAngle = Math.atan2(dy, dx);
+                
+                setInteraction({
+                    type: 'rotate-table',
+                    id,
+                    initialAngle,
+                    initialRotation: table.rotation,
+                    offsetX: 0,
+                    offsetY: 0,
+                });
+                e.stopPropagation();
+                return;
+            }
+
+            if (targetClass.includes('resize-handle')) {
+                const id = tableGroup?.id;
+                if (!id) return;
+                 setInteraction({
+                    type: 'resize-table',
+                    id,
+                    initialAngle: 0,
+                    initialRotation: 0,
+                    offsetX: 0,
+                    offsetY: 0,
+                });
+                e.stopPropagation();
+                return;
+            }
+            
             if (tableGroup) {
                 const id = tableGroup.id;
                 setSelectedElement(id);
@@ -209,9 +247,11 @@ export function FloorPlanEditor() {
                 if (table) {
                     setInteraction({
                         type: 'move-table',
-                        id: id,
+                        id,
                         offsetX: pos.x - table.x,
                         offsetY: pos.y - table.y,
+                        initialAngle: 0,
+                        initialRotation: 0,
                     });
                 }
                 return;
@@ -254,24 +294,46 @@ export function FloorPlanEditor() {
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
+        if (interaction.type === 'none' && !isDrawingWall) return;
+        
         const pos = getMousePosition(e);
         
         if (isDrawingWall && tool === 'wall' && newWall) {
             setNewWall([newWall[0], { ...pos }]);
-        } else if (interaction.type === 'move-table' && interaction.id) {
-            setTables(currentTables => 
-                currentTables.map(t => 
-                    t.id === interaction.id 
-                        ? { ...t, x: pos.x - interaction.offsetX, y: pos.y - interaction.offsetY } 
-                        : t
-                )
-            );
+        } else if (interaction.id) {
+            const table = tables.find(t => t.id === interaction.id);
+            if (!table) return;
+
+            if (interaction.type === 'move-table') {
+                updateTable(interaction.id, { x: pos.x - interaction.offsetX, y: pos.y - interaction.offsetY });
+            } else if (interaction.type === 'rotate-table') {
+                const dx = pos.x - table.x;
+                const dy = pos.y - table.y;
+                const currentAngle = Math.atan2(dy, dx);
+                const angleDiff = currentAngle - interaction.initialAngle;
+                const newRotation = interaction.initialRotation + (angleDiff * 180 / Math.PI);
+                updateTable(interaction.id, { rotation: newRotation });
+            } else if (interaction.type === 'resize-table') {
+                const angleRad = -table.rotation * Math.PI / 180;
+                const cos = Math.cos(angleRad);
+                const sin = Math.sin(angleRad);
+                const localX = pos.x - table.x;
+                const localY = pos.y - table.y;
+
+                const unrotatedX = localX * cos - localY * sin;
+                const unrotatedY = localX * sin + localY * cos;
+
+                const newWidth = Math.max(20, Math.abs(unrotatedX) * 2);
+                const newHeight = Math.max(20, Math.abs(unrotatedY) * 2);
+                
+                updateTable(interaction.id, { width: newWidth, height: newHeight });
+            }
         }
     };
 
     const handleMouseUp = (e: React.MouseEvent) => {
         if (interaction.type !== 'none') {
-            setInteraction({ type: 'none', id: null, offsetX: 0, offsetY: 0 });
+            setInteraction({ type: 'none', id: null, offsetX: 0, offsetY: 0, initialAngle: 0, initialRotation: 0 });
         }
 
         if (isDrawingWall && tool === 'wall' && newWall) {
@@ -408,7 +470,7 @@ export function FloorPlanEditor() {
             </ToggleGroup>
        </div>
 
-      <svg ref={svgRef} className="flex-1" viewBox="0 0 2000 2000" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onDoubleClick={handleDoubleClick}>
+      <svg ref={svgRef} className="flex-1 cursor-default" viewBox="0 0 2000 2000" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onDoubleClick={handleDoubleClick}>
         <defs>
             <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
                 <path d="M 20 0 L 0 0 0 20" fill="none" stroke="hsl(var(--border))" strokeWidth="0.5"/>
