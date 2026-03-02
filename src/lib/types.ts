@@ -41,7 +41,7 @@ export type Tavolo = {
   rotation: number;
   raggio?: number;
   capienza: number;
-  zona: 'sala' | 'dehor' | 'terrazza' | 'bar';
+  zona: string;
   attivo: boolean;
 };
 

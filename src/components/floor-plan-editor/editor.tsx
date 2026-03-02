@@ -73,7 +73,7 @@ const Table = ({ x, y, width, height, rotation, type, number, capienza, selected
   );
 };
 
-const PropertiesPanel = ({ selectedTable, selectedZone, onUpdateTable, onDeleteTable, onUpdateZone, onDeleteZone }: any) => {
+const PropertiesPanel = ({ selectedTable, selectedZone, onUpdateTable, onDeleteTable, onUpdateZone, onDeleteZone, zones }: any) => {
     if (selectedTable) {
         const handleCapacityChange = (amount: number) => {
             const newCapacity = Math.max(1, selectedTable.capienza + amount);
@@ -94,9 +94,12 @@ const PropertiesPanel = ({ selectedTable, selectedZone, onUpdateTable, onDeleteT
             }
         };
         
-        const handleSelectChange = (value: string) => {
-            onUpdateTable(selectedTable.id, { tipo: value });
+        const handleSelectChange = (name: string) => (value: string) => {
+            onUpdateTable(selectedTable.id, { [name]: value });
         };
+        
+        const uniqueZoneNames = [...new Set(zones.map((z: any) => z.nome).filter(Boolean))];
+
         return (
             <div className="absolute top-0 right-0 z-10 bg-card h-full w-64 p-4 border-l shadow-lg">
                 <h3 className="font-semibold text-lg mb-6">Proprietà Tavolo</h3>
@@ -119,13 +122,26 @@ const PropertiesPanel = ({ selectedTable, selectedZone, onUpdateTable, onDeleteT
                     </div>
                      <div>
                         <Label htmlFor="table-type">Forma</Label>
-                         <Select value={selectedTable.tipo} onValueChange={handleSelectChange}>
+                         <Select value={selectedTable.tipo} onValueChange={handleSelectChange('tipo')}>
                             <SelectTrigger id="table-type">
                                 <SelectValue placeholder="Seleziona tipo" />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="rettangolare">Rettangolare</SelectItem>
                                 <SelectItem value="rotondo">Rotondo</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                     <div>
+                        <Label htmlFor="table-zone">Zona</Label>
+                         <Select value={selectedTable.zona} onValueChange={handleSelectChange('zona')}>
+                            <SelectTrigger id="table-zone">
+                                <SelectValue placeholder="Nessuna zona" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {uniqueZoneNames.map((name: string) => (
+                                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </div>
@@ -392,6 +408,7 @@ export function FloorPlanEditor() {
                     type: 'rettangolare',
                     numero: tables.length + 1,
                     capienza: 4,
+                    zona: undefined,
                 };
                 setTables(prev => [...prev, newTable]);
                 setSelectedElement(newTable.id);
@@ -715,9 +732,9 @@ export function FloorPlanEditor() {
         onDeleteTable={deleteTable}
         onUpdateZone={updateZone}
         onDeleteZone={deleteZone}
+        zones={zones}
        />
     </div>
     </TooltipProvider>
   );
 }
-    
