@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useAuth, useUser } from '@/firebase';
-import { GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { DraftingCompass } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -52,22 +52,6 @@ export default function LoginPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const checkRedirectResult = async () => {
-      try {
-        await getRedirectResult(auth);
-      } catch (error: any) {
-        console.error('Login failed:', error);
-        toast({
-          title: 'Errore di accesso',
-          description: error.message || 'Non è stato possibile completare l\'accesso. Riprova.',
-          variant: 'destructive',
-        });
-      }
-    };
-    checkRedirectResult();
-  }, [auth, toast]);
-
-  useEffect(() => {
     if (!isUserLoading && user) {
       router.push('/dashboard');
     }
@@ -75,7 +59,16 @@ export default function LoginPage() {
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    await signInWithRedirect(auth, provider);
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error: any) {
+      console.error('Login failed:', error);
+      toast({
+        title: 'Errore di accesso',
+        description: error.message || 'Non è stato possibile completare l\'accesso. Riprova.',
+        variant: 'destructive',
+      });
+    }
   };
   
   return (
