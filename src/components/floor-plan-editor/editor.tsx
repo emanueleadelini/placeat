@@ -259,6 +259,20 @@ export function FloorPlanEditor() {
 
         return centroid;
     };
+    
+    const isPointInPolygon = (point: {x: number, y: number}, polygon: {x: number, y: number}[]) => {
+        const x = point.x, y = point.y;
+        let inside = false;
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+            const xi = polygon[i].x, yi = polygon[i].y;
+            const xj = polygon[j].x, yj = polygon[j].y;
+            
+            const intersect = ((yi > y) != (yj > y))
+                && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+            if (intersect) inside = !inside;
+        }
+        return inside;
+    };
 
 
     const getMousePosition = (evt: React.MouseEvent) => {
@@ -321,8 +335,35 @@ export function FloorPlanEditor() {
     const handleMouseDown = (e: React.MouseEvent) => {
         const pos = getMousePosition(e);
         const target = e.target as SVGElement;
-        const targetClass = target.getAttribute('class') || '';
+        
+        if (tool === 'table') {
+            let zoneName: string | undefined = undefined;
+            // Find which zone the table is being created in
+            for (const zone of zones) {
+                if (isPointInPolygon(pos, zone.path)) {
+                    zoneName = zone.nome;
+                    break;
+                }
+            }
+            const newTable = {
+                id: `table-${Date.now()}`,
+                x: pos.x,
+                y: pos.y,
+                width: 80,
+                height: 80,
+                rotation: 0,
+                type: 'rettangolare',
+                numero: tables.length + 1,
+                capienza: 4,
+                zona: zoneName,
+            };
+            setTables(prev => [...prev, newTable]);
+            setSelectedElement(newTable.id);
+            setTool('select');
+            return;
+        }
 
+        const targetClass = target.getAttribute('class') || '';
         const isBackground = !target.closest('.table-group') && 
                            !target.closest('.zone-group') && 
                            (target.tagName === 'svg' || target.tagName === 'rect');
@@ -397,22 +438,6 @@ export function FloorPlanEditor() {
             } else if (tool === 'wall') {
                 setIsDrawingWall(true);
                 setNewWall([{ ...pos }, { ...pos }]);
-            } else if (tool === 'table') {
-                const newTable = {
-                    id: `table-${Date.now()}`,
-                    x: pos.x,
-                    y: pos.y,
-                    width: 80,
-                    height: 80,
-                    rotation: 0,
-                    type: 'rettangolare',
-                    numero: tables.length + 1,
-                    capienza: 4,
-                    zona: undefined,
-                };
-                setTables(prev => [...prev, newTable]);
-                setSelectedElement(newTable.id);
-                setTool('select');
             } else if (tool === 'zone') {
                 setIsDrawingZone(true);
                 setNewZonePoints(prev => [...prev, pos]);
