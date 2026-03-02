@@ -264,8 +264,12 @@ export function FloorPlanEditor() {
             }
         }
         
-        // If clicking on background
-        if (target === e.currentTarget) {
+        // Check if clicking on background (not on interactive elements)
+        const isBackground = !target.closest('.table-group') && 
+                           !target.closest('.zone-polygon') && 
+                           (target.tagName === 'svg' || target.tagName === 'rect');
+        
+        if (isBackground) {
             if (tool === 'select') {
                 setSelectedElement(null);
             } else if (tool === 'wall') {
