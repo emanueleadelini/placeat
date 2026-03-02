@@ -1,7 +1,7 @@
 import { FloorPlanEditor } from '@/components/floor-plan-editor/editor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CircleDot, PenLine, Save, Layers } from 'lucide-react';
+import { Circle, PenLine, Save, Layers, Square as SquareIcon } from 'lucide-react';
 
 export default function FloorPlanPage() {
   return (
@@ -22,7 +22,7 @@ export default function FloorPlanPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Come funziona</CardTitle>
-                    <CardDescription>Crea la tua piantina in 4 passaggi.</CardDescription>
+                    <CardDescription>Crea la tua piantina in 6 passaggi.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-6">
                     <div className="flex gap-4 items-start">
@@ -30,31 +30,49 @@ export default function FloorPlanPage() {
                             <span className="font-bold text-primary">1</span>
                         </div>
                         <div>
-                            <h3 className="font-semibold flex items-center gap-2"><PenLine className="w-4 h-4 text-muted-foreground" /> Disegna le Mura</h3>
-                            <p className="text-sm text-muted-foreground mt-1">Usa lo strumento "Muro" per tracciare le pareti principali del tuo locale, sia interne che esterne.</p>
+                            <h3 className="font-semibold flex items-center gap-2"><SquareIcon className="w-4 h-4 text-muted-foreground" /> Disegna le Forme Base</h3>
+                            <p className="text-sm text-muted-foreground mt-1">Usa gli strumenti "Rettangolo" o "Cerchio" per disegnare le aree principali. Clicca e trascina per creare le forme.</p>
+                        </div>
+                    </div>
+                     <div className="flex gap-4 items-start">
+                        <div className="flex items-center justify-center bg-muted rounded-full w-8 h-8 shrink-0">
+                            <span className="font-bold text-primary">2</span>
+                        </div>
+                        <div>
+                            <h3 className="font-semibold flex items-center gap-2"><Layers className="w-4 h-4 text-muted-foreground" /> Disegna a Mano Libera</h3>
+                            <p className="text-sm text-muted-foreground mt-1">Per forme complesse, usa "Zona" per disegnare un perimetro punto per punto. Fai doppio click per finire.</p>
                         </div>
                     </div>
                     <div className="flex gap-4 items-start">
                         <div className="flex items-center justify-center bg-muted rounded-full w-8 h-8 shrink-0">
-                             <span className="font-bold text-primary">2</span>
+                             <span className="font-bold text-primary">3</span>
                         </div>
                         <div>
                             <h3 className="font-semibold flex items-center gap-2"><Layers className="w-4 h-4 text-muted-foreground" /> Definisci le Zone</h3>
-                            <p className="text-sm text-muted-foreground mt-1">Usa lo strumento "Zona", disegna le aree e assegna un nome (es. 'Sala principale', 'Terrazzo') dal pannello delle proprietà.</p>
+                            <p className="text-sm text-muted-foreground mt-1">Seleziona una forma e assegnale un nome (es. 'Sala principale') e un colore dal pannello delle proprietà.</p>
+                        </div>
+                    </div>
+                     <div className="flex gap-4 items-start">
+                        <div className="flex items-center justify-center bg-muted rounded-full w-8 h-8 shrink-0">
+                            <span className="font-bold text-primary">4</span>
+                        </div>
+                        <div>
+                            <h3 className="font-semibold flex items-center gap-2"><PenLine className="w-4 h-4 text-muted-foreground" /> Aggiungi Dettagli</h3>
+                            <p className="text-sm text-muted-foreground mt-1">Usa lo strumento "Muro" per aggiungere pareti interne o altri elementi strutturali.</p>
                         </div>
                     </div>
                     <div className="flex gap-4 items-start">
                         <div className="flex items-center justify-center bg-muted rounded-full w-8 h-8 shrink-0">
-                           <span className="font-bold text-primary">3</span>
+                           <span className="font-bold text-primary">5</span>
                         </div>
                         <div>
-                            <h3 className="font-semibold flex items-center gap-2"><CircleDot className="w-4 h-4 text-muted-foreground" /> Inserisci i Tavoli</h3>
+                            <h3 className="font-semibold flex items-center gap-2"><Circle className="w-4 h-4 text-muted-foreground" /> Inserisci i Tavoli</h3>
                             <p className="text-sm text-muted-foreground mt-1">Aggiungi i tavoli, assegnali a una zona, e definisci numero e capienza dal pannello delle proprietà.</p>
                         </div>
                     </div>
                      <div className="flex gap-4 items-start">
                         <div className="flex items-center justify-center bg-muted rounded-full w-8 h-8 shrink-0">
-                           <span className="font-bold text-primary">4</span>
+                           <span className="font-bold text-primary">6</span>
                         </div>
                         <div>
                             <h3 className="font-semibold flex items-center gap-2"><Save className="w-4 h-4 text-muted-foreground" /> Salva e Pubblica</h3>

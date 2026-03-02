@@ -14,6 +14,8 @@ import {
   Plus,
   Minus,
   Trash2,
+  Square,
+  Circle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -181,6 +183,8 @@ export function FloorPlanEditor() {
     const [newZonePoints, setNewZonePoints] = useState<{x: number, y:number}[]>([]);
     const [selectedElement, setSelectedElement] = useState<string | null>(null);
     const svgRef = useRef<SVGSVGElement>(null);
+    const [drawing, setDrawing] = useState<{shape: 'rectangle' | 'circle', start: {x: number, y: number}} | null>(null);
+    const [previewShape, setPreviewShape] = useState<React.ReactNode | null>(null);
 
     const [interaction, setInteraction] = useState({
         type: 'none',
@@ -208,6 +212,10 @@ export function FloorPlanEditor() {
         const pos = getMousePosition(e);
         const target = e.target as SVGElement;
         const targetClass = target.getAttribute('class') || '';
+
+        const isBackground = !target.closest('.table-group') && 
+                           !target.closest('.zone-polygon') && 
+                           (target.tagName === 'svg' || target.tagName === 'rect');
 
         if (tool === 'select') {
             const tableGroup = target.closest('.table-group');
@@ -273,11 +281,6 @@ export function FloorPlanEditor() {
             }
         }
         
-        // Check if clicking on background (not on interactive elements)
-        const isBackground = !target.closest('.table-group') && 
-                           !target.closest('.zone-polygon') && 
-                           (target.tagName === 'svg' || target.tagName === 'rect');
-        
         if (isBackground) {
             if (tool === 'select') {
                 setSelectedElement(null);
@@ -302,14 +305,33 @@ export function FloorPlanEditor() {
             } else if (tool === 'zone') {
                 setIsDrawingZone(true);
                 setNewZonePoints(prev => [...prev, pos]);
+            } else if (tool === 'rectangle' || tool === 'circle') {
+                setDrawing({ shape: tool, start: pos });
             }
         }
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
-        if (interaction.type === 'none' && !isDrawingWall) return;
-        
         const pos = getMousePosition(e);
+        
+        if (drawing) {
+            const { start, shape } = drawing;
+            if (shape === 'rectangle') {
+                const x = Math.min(start.x, pos.x);
+                const y = Math.min(start.y, pos.y);
+                const width = Math.abs(start.x - pos.x);
+                const height = Math.abs(start.y - pos.y);
+                setPreviewShape(<rect x={x} y={y} width={width} height={height} className="fill-primary/20 stroke-primary stroke-2" />);
+            } else if (shape === 'circle') {
+                const dx = pos.x - start.x;
+                const dy = pos.y - start.y;
+                const radius = Math.sqrt(dx * dx + dy * dy);
+                setPreviewShape(<circle cx={start.x} cy={start.y} r={radius} className="fill-primary/20 stroke-primary stroke-2" />);
+            }
+            return;
+        }
+
+        if (interaction.type === 'none' && !isDrawingWall) return;
         
         if (isDrawingWall && tool === 'wall' && newWall) {
             setNewWall([newWall[0], { ...pos }]);
@@ -345,6 +367,50 @@ export function FloorPlanEditor() {
     };
 
     const handleMouseUp = (e: React.MouseEvent) => {
+        if (drawing) {
+            const endPos = getMousePosition(e);
+            let path;
+            
+            if (drawing.shape === 'rectangle') {
+                path = [
+                    { x: drawing.start.x, y: drawing.start.y },
+                    { x: endPos.x, y: drawing.start.y },
+                    { x: endPos.x, y: endPos.y },
+                    { x: drawing.start.x, y: endPos.y },
+                ];
+            } else if (drawing.shape === 'circle') {
+                const dx = endPos.x - drawing.start.x;
+                const dy = endPos.y - drawing.start.y;
+                const radius = Math.sqrt(dx * dx + dy * dy);
+                
+                path = [];
+                const segments = 32;
+                for (let i = 0; i < segments; i++) {
+                    const angle = (i / segments) * 2 * Math.PI;
+                    path.push({
+                        x: drawing.start.x + radius * Math.cos(angle),
+                        y: drawing.start.y + radius * Math.sin(angle),
+                    });
+                }
+            }
+
+            if (path) {
+                const newZone = {
+                    id: `zone-${Date.now()}`,
+                    path: path,
+                    nome: `Zona ${zones.length + 1}`,
+                    colore: '#80b3ff4D',
+                };
+                setZones(prev => [...prev, newZone]);
+                setSelectedElement(newZone.id);
+            }
+            
+            setDrawing(null);
+            setPreviewShape(null);
+            setTool('select');
+            return;
+        }
+
         if (interaction.type !== 'none') {
             setInteraction({ type: 'none', id: null, offsetX: 0, offsetY: 0, initialAngle: 0, initialRotation: 0 });
         }
@@ -420,15 +486,27 @@ export function FloorPlanEditor() {
             </Tooltip>
              <Tooltip>
                 <TooltipTrigger asChild>
-                    <ToggleGroupItem value="table" aria-label="Add Table"><RectangleHorizontal className="w-4 h-4"/></ToggleGroupItem>
+                    <ToggleGroupItem value="rectangle" aria-label="Draw Rectangle"><Square className="w-4 h-4"/></ToggleGroupItem>
                 </TooltipTrigger>
-                <TooltipContent>Aggiungi Tavolo (T)</TooltipContent>
+                <TooltipContent>Disegna Rettangolo (R)</TooltipContent>
+            </Tooltip>
+             <Tooltip>
+                <TooltipTrigger asChild>
+                    <ToggleGroupItem value="circle" aria-label="Draw Circle"><Circle className="w-4 h-4"/></ToggleGroupItem>
+                </TooltipTrigger>
+                <TooltipContent>Disegna Cerchio (C)</TooltipContent>
             </Tooltip>
              <Tooltip>
                 <TooltipTrigger asChild>
                     <ToggleGroupItem value="zone" aria-label="Draw Zone"><Layers className="w-4 h-4"/></ToggleGroupItem>
                 </TooltipTrigger>
                 <TooltipContent>Disegna Zona (Z)</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <ToggleGroupItem value="table" aria-label="Add Table"><RectangleHorizontal className="w-4 h-4"/></ToggleGroupItem>
+                </TooltipTrigger>
+                <TooltipContent>Aggiungi Tavolo (T)</TooltipContent>
             </Tooltip>
         </ToggleGroup>
       </div>
@@ -530,6 +608,8 @@ export function FloorPlanEditor() {
         {newWall && (
              <line x1={newWall[0].x} y1={newWall[0].y} x2={newWall[1].x} y2={newWall[1].y} strokeWidth="10" className="stroke-primary" strokeLinecap="round" />
         )}
+        
+        {previewShape}
 
         {/* Tables */}
         {tables.map(table => (
