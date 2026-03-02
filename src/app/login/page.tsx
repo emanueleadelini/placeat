@@ -10,11 +10,12 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useAuth, useUser } from '@/firebase';
-import { GoogleAuthProvider, signInWithRedirect } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { DraftingCompass } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg
@@ -48,6 +49,23 @@ export default function LoginPage() {
   const auth = useAuth();
   const router = useRouter();
   const { user, isUserLoading } = useUser();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const checkRedirectResult = async () => {
+      try {
+        await getRedirectResult(auth);
+      } catch (error: any) {
+        console.error('Login failed:', error);
+        toast({
+          title: 'Errore di accesso',
+          description: error.message || 'Non è stato possibile completare l\'accesso. Riprova.',
+          variant: 'destructive',
+        });
+      }
+    };
+    checkRedirectResult();
+  }, [auth, toast]);
 
   useEffect(() => {
     if (!isUserLoading && user) {
@@ -88,5 +106,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    

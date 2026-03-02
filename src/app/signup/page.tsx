@@ -10,11 +10,12 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useAuth, useUser } from '@/firebase';
-import { GoogleAuthProvider, signInWithRedirect } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { DraftingCompass } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg
@@ -48,6 +49,23 @@ export default function SignupPage() {
   const auth = useAuth();
   const router = useRouter();
   const { user, isUserLoading } = useUser();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const checkRedirectResult = async () => {
+      try {
+        await getRedirectResult(auth);
+      } catch (error: any) {
+        console.error('Signup failed:', error);
+        toast({
+          title: 'Errore di registrazione',
+          description: error.message || 'Non è stato possibile completare la registrazione. Riprova.',
+          variant: 'destructive',
+        });
+      }
+    };
+    checkRedirectResult();
+  }, [auth, toast]);
 
   useEffect(() => {
     if (!isUserLoading && user) {
@@ -88,5 +106,3 @@ export default function SignupPage() {
     </div>
   );
 }
-
-    
