@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   MousePointer,
   PenLine,
@@ -145,7 +145,14 @@ const PropertiesPanel = ({ selectedTable, selectedZone, onUpdateTable, onDeleteT
                 <div className="grid gap-4">
                     <div>
                         <Label htmlFor="zone-name">Nome Zona</Label>
-                        <Input id="zone-name" name="nome" value={selectedZone.nome} onChange={(e) => onUpdateZone(selectedZone.id, { nome: e.target.value })} />
+                        <Input 
+                            id="zone-name" 
+                            name="nome" 
+                            value={selectedZone.nome} 
+                            onChange={(e) => onUpdateZone(selectedZone.id, { nome: e.target.value })}
+                            placeholder="Es. Sala principale, Terrazza..."
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Dai lo stesso nome a più aree per fonderle in un'unica zona.</p>
                     </div>
                     <div>
                         <Label htmlFor="zone-color">Colore</Label>
@@ -164,8 +171,8 @@ const PropertiesPanel = ({ selectedTable, selectedZone, onUpdateTable, onDeleteT
          <div className="absolute top-0 right-0 z-10 bg-card h-full w-64 p-4 border-l flex flex-col items-center justify-center text-center">
             <MousePointer className="w-10 h-10 text-muted-foreground mb-4"/>
             <p className="text-sm text-muted-foreground">Seleziona un elemento per vederne le proprietà.</p>
-            <p className="text-xs text-muted-foreground mt-4 pt-4 border-t w-full">
-                Per creare una zona, seleziona <Layers className="inline w-3 h-3"/>, clicca sulla tela per aggiungere punti e fai doppio click per finire.
+             <p className="text-xs text-muted-foreground mt-4 pt-4 border-t w-full">
+                Usa i tasti <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Canc</kbd> o <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Backspace</kbd> per eliminare.
             </p>
         </div>
     )
@@ -195,6 +202,49 @@ export function FloorPlanEditor() {
         initialRotation: 0,
     });
 
+    const getPolygonCentroid = (points: {x: number, y: number}[]) => {
+        let centroid = { x: 0, y: 0 };
+        if (!points || points.length === 0) return centroid;
+
+        let signedArea = 0.0;
+        let x0 = 0.0; // Current vertex
+        let y0 = 0.0; // Current vertex
+        let x1 = 0.0; // Next vertex
+        let y1 = 0.0; // Next vertex
+        let a = 0.0;  // Partial signed area
+
+        let i = 0;
+        for (i = 0; i < points.length - 1; ++i) {
+            x0 = points[i].x;
+            y0 = points[i].y;
+            x1 = points[i+1].x;
+            y1 = points[i+1].y;
+            a = x0 * y1 - x1 * y0;
+            signedArea += a;
+            centroid.x += (x0 + x1) * a;
+            centroid.y += (y0 + y1) * a;
+        }
+
+        // Do last vertex
+        x0 = points[i].x;
+        y0 = points[i].y;
+        x1 = points[0].x;
+        y1 = points[0].y;
+        a = x0 * y1 - x1 * y0;
+        signedArea += a;
+        centroid.x += (x0 + x1) * a;
+        centroid.y += (y0 + y1) * a;
+        
+        if (Math.abs(signedArea) < 1e-7) return {x: points[0].x, y: points[0].y};
+
+        signedArea *= 0.5;
+        centroid.x /= (6.0 * signedArea);
+        centroid.y /= (6.0 * signedArea);
+
+        return centroid;
+    };
+
+
     const getMousePosition = (evt: React.MouseEvent) => {
         const svg = svgRef.current;
         if (!svg) return { x: 0, y: 0 };
@@ -207,6 +257,50 @@ export function FloorPlanEditor() {
         }
         return { x: 0, y: 0 };
     };
+    
+    const updateTable = (id: string, updatedProps: any) => {
+        setTables(currentTables => 
+            currentTables.map(t => t.id === id ? { ...t, ...updatedProps } : t)
+        );
+    };
+
+    const deleteTable = (id: string) => {
+        setTables(currentTables => currentTables.filter(t => t.id !== id));
+        if (selectedElement === id) {
+            setSelectedElement(null);
+        }
+    }
+
+    const updateZone = (id: string, updatedProps: any) => {
+        setZones(currentZones => 
+            currentZones.map(z => z.id === id ? { ...z, ...updatedProps } : z)
+        );
+    };
+
+    const deleteZone = (id: string) => {
+        setZones(currentZones => currentZones.filter(z => z.id !== id));
+        if (selectedElement === id) {
+            setSelectedElement(null);
+        }
+    }
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (selectedElement && (e.key === 'Delete' || e.key === 'Backspace')) {
+                if (tables.some(t => t.id === selectedElement)) {
+                    deleteTable(selectedElement);
+                } else if (zones.some(z => z.id === selectedElement)) {
+                    deleteZone(selectedElement);
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [selectedElement, tables, zones]);
+
 
     const handleMouseDown = (e: React.MouseEvent) => {
         const pos = getMousePosition(e);
@@ -214,7 +308,7 @@ export function FloorPlanEditor() {
         const targetClass = target.getAttribute('class') || '';
 
         const isBackground = !target.closest('.table-group') && 
-                           !target.closest('.zone-polygon') && 
+                           !target.closest('.zone-group') && 
                            (target.tagName === 'svg' || target.tagName === 'rect');
 
         if (tool === 'select') {
@@ -274,9 +368,9 @@ export function FloorPlanEditor() {
                 return;
             }
 
-            const zonePolygon = target.closest('.zone-polygon');
-            if (zonePolygon) {
-                setSelectedElement(zonePolygon.id);
+            const zoneGroup = target.closest('.zone-group');
+            if (zoneGroup) {
+                setSelectedElement(zoneGroup.id);
                 return;
             }
         }
@@ -444,28 +538,6 @@ export function FloorPlanEditor() {
     
     const selectedTable = tables.find(t => t.id === selectedElement);
     const selectedZone = zones.find(z => z.id === selectedElement);
-
-    const updateTable = (id: string, updatedProps: any) => {
-        setTables(currentTables => 
-            currentTables.map(t => t.id === id ? { ...t, ...updatedProps } : t)
-        );
-    };
-
-    const deleteTable = (id: string) => {
-        setTables(currentTables => currentTables.filter(t => t.id !== id));
-        setSelectedElement(null);
-    }
-
-    const updateZone = (id: string, updatedProps: any) => {
-        setZones(currentZones => 
-            currentZones.map(z => z.id === id ? { ...z, ...updatedProps } : z)
-        );
-    };
-
-    const deleteZone = (id: string) => {
-        setZones(currentZones => currentZones.filter(z => z.id !== id));
-        setSelectedElement(null);
-    }
   
   return (
     <TooltipProvider>
@@ -571,17 +643,30 @@ export function FloorPlanEditor() {
         <rect width="2000" height="2000" fill="transparent" />
         
         {/* Zones */}
-        {zones.map(zone => (
-            <polygon
-                id={zone.id}
-                key={zone.id}
-                points={zone.path.map((p: any) => `${p.x},${p.y}`).join(' ')}
-                fill={zone.colore}
-                stroke={selectedElement === zone.id ? 'hsl(var(--primary))' : zone.colore.replace(/[\d\.]+\)$/, '1)')}
-                strokeWidth={selectedElement === zone.id ? 3 : 2}
-                className="cursor-pointer zone-polygon"
-            />
-        ))}
+        {zones.map(zone => {
+          const centroid = getPolygonCentroid(zone.path);
+          return (
+            <g key={zone.id} id={zone.id} className="zone-group cursor-pointer">
+              <polygon
+                  points={zone.path.map((p: any) => `${p.x},${p.y}`).join(' ')}
+                  fill={zone.colore}
+                  stroke={selectedElement === zone.id ? 'hsl(var(--primary))' : zone.colore.replace(/[\d\.]+\)$/, '1)')}
+                  strokeWidth={selectedElement === zone.id ? 3 : 2}
+                  className="zone-polygon"
+              />
+              <text 
+                x={centroid.x} 
+                y={centroid.y} 
+                textAnchor="middle" 
+                dy=".3em" 
+                className="fill-foreground font-bold pointer-events-none select-none"
+                fontSize="16"
+              >
+                  {zone.nome}
+              </text>
+            </g>
+          );
+        })}
 
         {/* Preview of new zone */}
         {isDrawingZone && newZonePoints.length > 0 && (
@@ -635,3 +720,4 @@ export function FloorPlanEditor() {
     </TooltipProvider>
   );
 }
+    
