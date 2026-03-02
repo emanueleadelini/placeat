@@ -1,3 +1,5 @@
+'use client';
+
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -7,8 +9,12 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { useAuth, useUser } from '@/firebase';
+import { GoogleAuthProvider, signInWithRedirect } from 'firebase/auth';
 import { DraftingCompass } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg
@@ -39,6 +45,21 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 
 export default function SignupPage() {
+  const auth = useAuth();
+  const router = useRouter();
+  const { user, isUserLoading } = useUser();
+
+  useEffect(() => {
+    if (!isUserLoading && user) {
+      router.push('/onboarding');
+    }
+  }, [user, isUserLoading, router]);
+
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    await signInWithRedirect(auth, provider);
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
@@ -50,7 +71,7 @@ export default function SignupPage() {
           <CardDescription>Inizia la tua prova gratuita di 14 giorni. Nessuna carta di credito richiesta.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <Button variant="outline">
+          <Button variant="outline" onClick={signInWithGoogle}>
             <GoogleIcon className="mr-2 h-5 w-5" />
             Registrati con Google
           </Button>
@@ -67,3 +88,5 @@ export default function SignupPage() {
     </div>
   );
 }
+
+    

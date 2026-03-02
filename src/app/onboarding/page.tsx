@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DraftingCompass, Building, Clock, LayoutGrid, Star, PartyPopper } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import Image from "next/image";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import Link from "next/link";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useUser } from "@/firebase";
+import { useRouter } from "next/navigation";
 
 const steps = [
   { id: 1, title: "Dati Base", icon: Building },
@@ -122,7 +124,15 @@ const Step5 = () => {
 
 export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState(1);
+  const router = useRouter();
+  const { user, isUserLoading } = useUser();
   const progress = (currentStep / steps.length) * 100;
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push('/signup');
+    }
+  }, [user, isUserLoading, router]);
 
   const handleNext = () => {
     if (currentStep < steps.length) {
@@ -148,6 +158,10 @@ export default function OnboardingPage() {
   }
 
   const currentStepInfo = steps[currentStep - 1];
+
+  if (isUserLoading || !user) {
+    return <div className="flex h-screen items-center justify-center">Loading...</div>
+  }
 
   return (
     <div className="min-h-screen bg-muted/40 flex flex-col">
@@ -208,3 +222,5 @@ export default function OnboardingPage() {
     </div>
   );
 }
+
+    
