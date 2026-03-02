@@ -1,9 +1,67 @@
+'use client';
+
+import { useRef, useState, useEffect } from 'react';
 import { FloorPlanEditor } from '@/components/floor-plan-editor/editor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Circle, PenLine, Save, Layers, Square as SquareIcon } from 'lucide-react';
+import { Circle, PenLine, Save, Layers, Square as SquareIcon, Loader2 } from 'lucide-react';
+import { useFirestore, useUser } from '@/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 export default function FloorPlanPage() {
+  const editorRef = useRef<{ publish: () => Promise<void> }>(null);
+  const { toast } = useToast();
+  const [isPublishing, setIsPublishing] = useState(false);
+  
+  const firestore = useFirestore();
+  const { user } = useUser();
+  const [ristoranteId, setRistoranteId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user && firestore) {
+      const q = query(collection(firestore, 'ristoranti'), where('proprietarioUid', '==', user.uid));
+      getDocs(q).then(snapshot => {
+        if (!snapshot.empty) {
+          // Assuming one user owns one restaurant for this context
+          setRistoranteId(snapshot.docs[0].id);
+        }
+        setLoading(false);
+      }).catch(err => {
+        console.error("Error fetching ristoranteId: ", err);
+        setLoading(false);
+        toast({
+          title: "Errore di caricamento",
+          description: "Impossibile verificare i dati del tuo ristorante.",
+          variant: "destructive"
+        })
+      });
+    }
+  }, [user, firestore, toast]);
+
+  const handlePublish = async () => {
+    if (editorRef.current) {
+      setIsPublishing(true);
+      try {
+        await editorRef.current.publish();
+        toast({
+          title: "Piantina pubblicata!",
+          description: "Le modifiche alla piantina sono state salvate con successo.",
+        });
+      } catch (error) {
+        console.error("Failed to publish floor plan:", error);
+        toast({
+          title: "Errore",
+          description: "Non è stato possibile salvare la piantina. Riprova.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsPublishing(false);
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-6">
@@ -11,8 +69,12 @@ export default function FloorPlanPage() {
             <h1 className="text-2xl md:text-3xl font-bold">Piantina del Locale</h1>
             <p className="text-muted-foreground">Crea e gestisci la disposizione del tuo ristorante.</p>
         </div>
-        <Button>
-          <Save className="mr-2 h-4 w-4" />
+        <Button onClick={handlePublish} disabled={isPublishing || loading || !ristoranteId}>
+          {isPublishing ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="mr-2 h-4 w-4" />
+          )}
           Pubblica Piantina
         </Button>
       </div>
@@ -83,9 +145,21 @@ export default function FloorPlanPage() {
             </Card>
         </div>
         <div className="lg:col-span-9 border-2 border-dashed rounded-xl overflow-hidden">
-          <FloorPlanEditor />
+           {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : ristoranteId ? (
+            <FloorPlanEditor ref={editorRef} ristoranteId={ristoranteId} />
+          ) : (
+             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8">
+                <p className="font-semibold">Ristorante non trovato.</p>
+                <p className="text-sm">Completa l'onboarding per configurare il tuo ristorante prima di creare una piantina.</p>
+              </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
+    

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import {
   MousePointer,
   PenLine,
@@ -34,6 +34,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useFirestore, useUser } from '@/firebase';
+import { doc, collection, getDocs, writeBatch } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 
 const TableContents = ({ width, height, type, number, capienza, selected }: any) => {
@@ -84,7 +87,7 @@ const PropertiesPanel = ({ selectedTable, selectedZone, onUpdateTable, onDeleteT
             const { name, value } = e.target;
             if (name === "numero") {
                 const parsed = parseInt(value, 10);
-                if (!isNaN(parsed)) {
+                if (!isNaN(parsed) && parsed > 0) {
                     onUpdateTable(selectedTable.id, { numero: parsed });
                 } else if (value === '') {
                     onUpdateTable(selectedTable.id, { numero: '' });
@@ -195,10 +198,13 @@ const PropertiesPanel = ({ selectedTable, selectedZone, onUpdateTable, onDeleteT
 };
 
 
-export function FloorPlanEditor() {
+export const FloorPlanEditor = forwardRef(function FloorPlanEditor(
+    { ristoranteId }: { ristoranteId: string },
+    ref
+) {
     const [tool, setTool] = useState('select');
     const [tables, setTables] = useState<any[]>([]);
-    const [walls, setWalls] = useState<{x: number, y:number}[][]>([]);
+    const [walls, setWalls] = useState<any[]>([]);
     const [zones, setZones] = useState<any[]>([]);
     const [isDrawingWall, setIsDrawingWall] = useState(false);
     const [newWall, setNewWall] = useState<{x: number, y:number}[] | null>(null);
@@ -217,6 +223,106 @@ export function FloorPlanEditor() {
         initialAngle: 0,
         initialRotation: 0,
     });
+    
+    const firestore = useFirestore();
+    const { user } = useUser();
+    const { toast } = useToast();
+
+    useEffect(() => {
+        if (!ristoranteId || !firestore) return;
+
+        const fetchData = async () => {
+            try {
+                // Fetch Tavoli
+                const tavoliSnapshot = await getDocs(collection(firestore, 'ristoranti', ristoranteId, 'tavoli'));
+                const tavoliData = tavoliSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                setTables(tavoliData);
+
+                // Fetch Muri
+                const muriSnapshot = await getDocs(collection(firestore, 'ristoranti', ristoranteId, 'muri'));
+                const muriData = muriSnapshot.docs.map(d => {
+                    const data = d.data();
+                    const points = (data.pointsX || []).map((x: number, i: number) => ({ x, y: data.pointsY[i] }));
+                    return { id: d.id, points, spessore: data.spessore };
+                });
+                setWalls(muriData);
+                
+                // Fetch Zone
+                const zoneSnapshot = await getDocs(collection(firestore, 'ristoranti', ristoranteId, 'zone'));
+                const zoneData = zoneSnapshot.docs.map(d => {
+                    const data = d.data();
+                    const path = (data.pathX || []).map((x: number, i: number) => ({ x, y: data.pathY[i] }));
+                    return { id: d.id, path, nome: data.nome, colore: data.colore };
+                });
+                setZones(zoneData);
+
+            } catch (error) {
+                console.error("Error fetching floor plan data: ", error);
+                toast({ title: 'Errore nel caricamento', description: 'Impossibile caricare la piantina esistente.', variant: 'destructive' });
+            }
+        };
+
+        fetchData();
+    }, [ristoranteId, firestore, toast]);
+
+    useImperativeHandle(ref, () => ({
+        publish: async () => {
+          if (!firestore || !user || !ristoranteId) {
+            throw new Error("Component not ready or user not logged in.");
+          }
+    
+          const batch = writeBatch(firestore);
+          const proprietarioUid = user.uid;
+    
+          // Define collections
+          const tavoliCol = collection(firestore, 'ristoranti', ristoranteId, 'tavoli');
+          const zoneCol = collection(firestore, 'ristoranti', ristoranteId, 'zone');
+          const muriCol = collection(firestore, 'ristoranti', ristoranteId, 'muri');
+    
+          // Clear existing data for simplicity. A more complex diff algorithm could be used for performance.
+          const oldTavoli = await getDocs(tavoliCol);
+          oldTavoli.forEach(doc => batch.delete(doc.ref));
+          const oldZone = await getDocs(zoneCol);
+          oldZone.forEach(doc => batch.delete(doc.ref));
+          const oldMuri = await getDocs(muriCol);
+          oldMuri.forEach(doc => batch.delete(doc.ref));
+    
+          // Add current tables
+          tables.forEach(table => {
+            const { id, ...data } = table;
+            const tableDocRef = doc(tavoliCol, id);
+            batch.set(tableDocRef, { ...data, ristoranteId, proprietarioUid });
+          });
+    
+          // Add current zones
+          zones.forEach(zone => {
+            const { id, path, ...data } = zone;
+            const zoneDocRef = doc(zoneCol, id);
+            batch.set(zoneDocRef, {
+              ...data,
+              ristoranteId,
+              proprietarioUid,
+              pathX: path.map((p: any) => p.x),
+              pathY: path.map((p: any) => p.y),
+            });
+          });
+    
+          // Add current walls
+          walls.forEach(wall => {
+            const { id, points, ...data } = wall;
+            const wallDocRef = doc(muriCol, id);
+            batch.set(wallDocRef, {
+              ...data,
+              ristoranteId,
+              proprietarioUid,
+              pointsX: points.map((p: any) => p.x),
+              pointsY: points.map((p: any) => p.y),
+            });
+          });
+    
+          await batch.commit();
+        },
+      }));
 
     const getPolygonCentroid = (points: {x: number, y: number}[]) => {
         let centroid = { x: 0, y: 0 };
@@ -328,6 +434,7 @@ export function FloorPlanEditor() {
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedElement, tables, zones]);
 
 
@@ -335,7 +442,6 @@ export function FloorPlanEditor() {
         const pos = getMousePosition(e);
         const target = e.target as SVGElement;
         
-        // Tool-specific logic takes priority
         if (tool === 'table') {
             let zoneName: string | undefined = undefined;
             for (const zone of zones) {
@@ -345,7 +451,7 @@ export function FloorPlanEditor() {
                 }
             }
             const newTable = {
-                id: `table-${Date.now()}`,
+                id: `tavolo-${Date.now()}`,
                 x: pos.x,
                 y: pos.y,
                 width: 80,
@@ -379,7 +485,6 @@ export function FloorPlanEditor() {
             return;
         }
 
-        // Fallback to select tool logic
         if (tool === 'select') {
             const targetClass = target.getAttribute('class') || '';
             const tableGroup = target.closest('.table-group');
@@ -423,7 +528,6 @@ export function FloorPlanEditor() {
                 return;
             }
 
-            // If nothing was hit, deselect
             setSelectedElement(null);
         }
     };
@@ -447,12 +551,13 @@ export function FloorPlanEditor() {
             }
             return;
         }
-
-        if (interaction.type === 'none' && !isDrawingWall) return;
         
         if (isDrawingWall && tool === 'wall' && newWall) {
             setNewWall([newWall[0], { ...pos }]);
-        } else if (interaction.id) {
+            return;
+        } 
+        
+        if (interaction.id) {
             const table = tables.find(t => t.id === interaction.id);
             if (!table) return;
 
@@ -489,43 +594,21 @@ export function FloorPlanEditor() {
             const dx = Math.abs(endPos.x - drawing.start.x);
             const dy = Math.abs(endPos.y - drawing.start.y);
 
-            // Only create if the shape is reasonably sized
             if (dx > 5 || dy > 5) {
                 let path;
                 
                 if (drawing.shape === 'rectangle') {
-                    const x1 = drawing.start.x;
-                    const y1 = drawing.start.y;
-                    const x2 = endPos.x;
-                    const y2 = endPos.y;
-                    path = [
-                        { x: Math.min(x1, x2), y: Math.min(y1, y2) },
-                        { x: Math.max(x1, x2), y: Math.min(y1, y2) },
-                        { x: Math.max(x1, x2), y: Math.max(y1, y2) },
-                        { x: Math.min(x1, x2), y: Math.max(y1, y2) },
-                    ];
+                    path = [ { x: drawing.start.x, y: drawing.start.y }, { x: endPos.x, y: drawing.start.y }, { x: endPos.x, y: endPos.y }, { x: drawing.start.x, y: endPos.y }, ];
                 } else if (drawing.shape === 'circle') {
                     const radius = Math.sqrt(dx * dx + dy * dy);
-                    const centerX = drawing.start.x;
-                    const centerY = drawing.start.y;
-                    path = [];
-                    const segments = 32;
-                    for (let i = 0; i < segments; i++) {
-                        const angle = (i / segments) * 2 * Math.PI;
-                        path.push({
-                            x: centerX + radius * Math.cos(angle),
-                            y: centerY + radius * Math.sin(angle),
-                        });
-                    }
+                    path = Array.from({ length: 32 }, (_, i) => {
+                        const angle = (i / 32) * 2 * Math.PI;
+                        return { x: drawing.start.x + radius * Math.cos(angle), y: drawing.start.y + radius * Math.sin(angle) };
+                    });
                 }
 
                 if (path) {
-                    const newZone = {
-                        id: `zone-${Date.now()}`,
-                        path: path,
-                        nome: `Zona ${zones.length + 1}`,
-                        colore: '#80b3ff4D',
-                    };
+                    const newZone = { id: `zona-${Date.now()}`, path: path, nome: `Zona ${zones.length + 1}`, colore: '#80b3ff4D' };
                     setZones(prev => [...prev, newZone]);
                     setSelectedElement(newZone.id);
                 }
@@ -546,7 +629,8 @@ export function FloorPlanEditor() {
             const dx = newWall[1].x - newWall[0].x;
             const dy = newWall[1].y - newWall[0].y;
             if (Math.sqrt(dx*dx + dy*dy) > 5) {
-                setWalls(prevWalls => [...prevWalls, newWall]);
+                const newWallWithId = { id: `muro-${Date.now()}`, points: newWall, spessore: 10 };
+                setWalls(prevWalls => [...prevWalls, newWallWithId]);
             }
             setNewWall(null);
         }
@@ -555,12 +639,7 @@ export function FloorPlanEditor() {
     const handleDoubleClick = (e: React.MouseEvent) => {
         if (tool === 'zone' && isDrawingZone && newZonePoints.length > 2) {
             setIsDrawingZone(false);
-            const newZone = {
-                id: `zone-${Date.now()}`,
-                path: newZonePoints,
-                nome: `Zona ${zones.length + 1}`,
-                colore: '#80b3ff4D',
-            };
+            const newZone = { id: `zona-${Date.now()}`, path: newZonePoints, nome: `Zona ${zones.length + 1}`, colore: '#80b3ff4D' };
             setZones(prev => [...prev, newZone]);
             setNewZonePoints([]);
             setSelectedElement(newZone.id);
@@ -718,8 +797,8 @@ export function FloorPlanEditor() {
         )}
 
         {/* Walls */}
-        {walls.map((wall, index) => (
-            <line key={index} x1={wall[0].x} y1={wall[0].y} x2={wall[1].x} y2={wall[1].y} strokeWidth="10" className="stroke-foreground" strokeLinecap="round" />
+        {walls.map((wall) => (
+            <line key={wall.id} x1={wall.points[0].x} y1={wall.points[0].y} x2={wall.points[1].x} y2={wall.points[1].y} strokeWidth={wall.spessore} className="stroke-foreground" strokeLinecap="round" />
         ))}
 
         {newWall && (
@@ -733,7 +812,7 @@ export function FloorPlanEditor() {
             <g 
                 id={table.id} 
                 key={table.id} 
-                className="table-group cursor-pointer"
+                className="table-group"
                 transform={`translate(${table.x}, ${table.y}) rotate(${table.rotation})`}
             >
                 <TableContents 
@@ -757,4 +836,6 @@ export function FloorPlanEditor() {
     </div>
     </TooltipProvider>
   );
-}
+});
+
+    
