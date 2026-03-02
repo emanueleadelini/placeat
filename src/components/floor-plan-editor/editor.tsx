@@ -241,7 +241,6 @@ export function FloorPlanEditor() {
             centroid.y += (y0 + y1) * a;
         }
 
-        // Do last vertex
         x0 = points[i].x;
         y0 = points[i].y;
         x1 = points[0].x;
@@ -336,9 +335,9 @@ export function FloorPlanEditor() {
         const pos = getMousePosition(e);
         const target = e.target as SVGElement;
         
+        // Tool-specific logic takes priority
         if (tool === 'table') {
             let zoneName: string | undefined = undefined;
-            // Find which zone the table is being created in
             for (const zone of zones) {
                 if (isPointInPolygon(pos, zone.path)) {
                     zoneName = zone.nome;
@@ -363,12 +362,26 @@ export function FloorPlanEditor() {
             return;
         }
 
-        const targetClass = target.getAttribute('class') || '';
-        const isBackground = !target.closest('.table-group') && 
-                           !target.closest('.zone-group') && 
-                           (target.tagName === 'svg' || target.tagName === 'rect');
+        if (tool === 'wall') {
+            setIsDrawingWall(true);
+            setNewWall([{ ...pos }, { ...pos }]);
+            return;
+        }
 
+        if (tool === 'zone') {
+            setIsDrawingZone(true);
+            setNewZonePoints(prev => [...prev, pos]);
+            return;
+        }
+
+        if (tool === 'rectangle' || tool === 'circle') {
+            setDrawing({ shape: tool, start: pos });
+            return;
+        }
+
+        // Fallback to select tool logic
         if (tool === 'select') {
+            const targetClass = target.getAttribute('class') || '';
             const tableGroup = target.closest('.table-group');
 
             if (targetClass.includes('rotate-handle')) {
@@ -381,14 +394,7 @@ export function FloorPlanEditor() {
                 const dy = pos.y - table.y;
                 const initialAngle = Math.atan2(dy, dx);
                 
-                setInteraction({
-                    type: 'rotate-table',
-                    id,
-                    initialAngle,
-                    initialRotation: table.rotation,
-                    offsetX: 0,
-                    offsetY: 0,
-                });
+                setInteraction({ type: 'rotate-table', id, initialAngle, initialRotation: table.rotation, offsetX: 0, offsetY: 0, });
                 e.stopPropagation();
                 return;
             }
@@ -396,14 +402,7 @@ export function FloorPlanEditor() {
             if (targetClass.includes('resize-handle')) {
                 const id = tableGroup?.id;
                 if (!id) return;
-                 setInteraction({
-                    type: 'resize-table',
-                    id,
-                    initialAngle: 0,
-                    initialRotation: 0,
-                    offsetX: 0,
-                    offsetY: 0,
-                });
+                 setInteraction({ type: 'resize-table', id, initialAngle: 0, initialRotation: 0, offsetX: 0, offsetY: 0, });
                 e.stopPropagation();
                 return;
             }
@@ -413,14 +412,7 @@ export function FloorPlanEditor() {
                 setSelectedElement(id);
                 const table = tables.find(t => t.id === id);
                 if (table) {
-                    setInteraction({
-                        type: 'move-table',
-                        id,
-                        offsetX: pos.x - table.x,
-                        offsetY: pos.y - table.y,
-                        initialAngle: 0,
-                        initialRotation: 0,
-                    });
+                    setInteraction({ type: 'move-table', id, offsetX: pos.x - table.x, offsetY: pos.y - table.y, initialAngle: 0, initialRotation: 0 });
                 }
                 return;
             }
@@ -430,20 +422,9 @@ export function FloorPlanEditor() {
                 setSelectedElement(zoneGroup.id);
                 return;
             }
-        }
-        
-        if (isBackground) {
-            if (tool === 'select') {
-                setSelectedElement(null);
-            } else if (tool === 'wall') {
-                setIsDrawingWall(true);
-                setNewWall([{ ...pos }, { ...pos }]);
-            } else if (tool === 'zone') {
-                setIsDrawingZone(true);
-                setNewZonePoints(prev => [...prev, pos]);
-            } else if (tool === 'rectangle' || tool === 'circle') {
-                setDrawing({ shape: tool, start: pos });
-            }
+
+            // If nothing was hit, deselect
+            setSelectedElement(null);
         }
     };
 
@@ -505,40 +486,44 @@ export function FloorPlanEditor() {
     const handleMouseUp = (e: React.MouseEvent) => {
         if (drawing) {
             const endPos = getMousePosition(e);
-            let path;
-            
-            if (drawing.shape === 'rectangle') {
-                path = [
-                    { x: drawing.start.x, y: drawing.start.y },
-                    { x: endPos.x, y: drawing.start.y },
-                    { x: endPos.x, y: endPos.y },
-                    { x: drawing.start.x, y: endPos.y },
-                ];
-            } else if (drawing.shape === 'circle') {
-                const dx = endPos.x - drawing.start.x;
-                const dy = endPos.y - drawing.start.y;
-                const radius = Math.sqrt(dx * dx + dy * dy);
-                
-                path = [];
-                const segments = 32;
-                for (let i = 0; i < segments; i++) {
-                    const angle = (i / segments) * 2 * Math.PI;
-                    path.push({
-                        x: drawing.start.x + radius * Math.cos(angle),
-                        y: drawing.start.y + radius * Math.sin(angle),
-                    });
-                }
-            }
+            const dx = Math.abs(endPos.x - drawing.start.x);
+            const dy = Math.abs(endPos.y - drawing.start.y);
 
-            if (path) {
-                const newZone = {
-                    id: `zone-${Date.now()}`,
-                    path: path,
-                    nome: `Zona ${zones.length + 1}`,
-                    colore: '#80b3ff4D',
-                };
-                setZones(prev => [...prev, newZone]);
-                setSelectedElement(newZone.id);
+            if (dx > 5 && dy > 5) {
+                let path;
+                
+                if (drawing.shape === 'rectangle') {
+                    path = [
+                        { x: drawing.start.x, y: drawing.start.y },
+                        { x: endPos.x, y: drawing.start.y },
+                        { x: endPos.x, y: endPos.y },
+                        { x: drawing.start.x, y: endPos.y },
+                    ];
+                } else if (drawing.shape === 'circle') {
+                    const radius = Math.sqrt(dx * dx + dy * dy) / 2;
+                    const centerX = (drawing.start.x + endPos.x) / 2;
+                    const centerY = (drawing.start.y + endPos.y) / 2;
+                    path = [];
+                    const segments = 32;
+                    for (let i = 0; i < segments; i++) {
+                        const angle = (i / segments) * 2 * Math.PI;
+                        path.push({
+                            x: centerX + radius * Math.cos(angle),
+                            y: centerY + radius * Math.sin(angle),
+                        });
+                    }
+                }
+
+                if (path) {
+                    const newZone = {
+                        id: `zone-${Date.now()}`,
+                        path: path,
+                        nome: `Zona ${zones.length + 1}`,
+                        colore: '#80b3ff4D',
+                    };
+                    setZones(prev => [...prev, newZone]);
+                    setSelectedElement(newZone.id);
+                }
             }
             
             setDrawing(null);
