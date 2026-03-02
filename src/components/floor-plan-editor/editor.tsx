@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   MousePointer,
   PenLine,
@@ -37,11 +37,11 @@ import {
 } from "@/components/ui/select";
 
 
-const Table = ({ x, y, width, height, rotation, type, number, capienza, selected, onClick }: any) => {
+const Table = ({ x, y, width, height, rotation, type, number, capienza, selected }: any) => {
   const isRound = type === 'rotondo';
   
   return (
-    <g transform={`translate(${x}, ${y}) rotate(${rotation})`} onClick={onClick} className="cursor-pointer">
+    <g transform={`translate(${x}, ${y}) rotate(${rotation})`} className="cursor-pointer table-group">
       <rect 
         x={-width/2} 
         y={-height/2}
@@ -53,10 +53,10 @@ const Table = ({ x, y, width, height, rotation, type, number, capienza, selected
         stroke={selected ? 'hsl(var(--primary))' : 'hsl(var(--border))'}
         strokeWidth={selected ? 2 : 1}
       />
-      <text textAnchor="middle" dy=".3em" className="fill-foreground font-bold text-base select-none">
+      <text textAnchor="middle" dy=".3em" className="fill-foreground font-bold text-base select-none pointer-events-none">
         {number}
       </text>
-       <text textAnchor="middle" dy="1.5em" className="fill-muted-foreground font-medium text-xs select-none">
+       <text textAnchor="middle" dy="1.5em" className="fill-muted-foreground font-medium text-xs select-none pointer-events-none">
         {capienza} posti
       </text>
       {selected && (
@@ -174,9 +174,18 @@ export function FloorPlanEditor() {
     const [isDrawingZone, setIsDrawingZone] = useState(false);
     const [newZonePoints, setNewZonePoints] = useState<{x: number, y:number}[]>([]);
     const [selectedElement, setSelectedElement] = useState<string | null>(null);
+    const svgRef = useRef<SVGSVGElement>(null);
+
+    const [interaction, setInteraction] = useState({
+        type: 'none',
+        id: null as string | null,
+        offsetX: 0,
+        offsetY: 0,
+    });
 
     const getMousePosition = (evt: React.MouseEvent) => {
-        const svg = evt.currentTarget as SVGSVGElement;
+        const svg = svgRef.current;
+        if (!svg) return { x: 0, y: 0 };
         const CTM = svg.getScreenCTM();
         if (CTM) {
             return {
@@ -189,53 +198,91 @@ export function FloorPlanEditor() {
 
     const handleMouseDown = (e: React.MouseEvent) => {
         const pos = getMousePosition(e);
+        const target = e.target as SVGElement;
+
+        if (tool === 'select') {
+            const tableGroup = target.closest('.table-group');
+            if (tableGroup) {
+                const id = tableGroup.id;
+                setSelectedElement(id);
+                const table = tables.find(t => t.id === id);
+                if (table) {
+                    setInteraction({
+                        type: 'move-table',
+                        id: id,
+                        offsetX: pos.x - table.x,
+                        offsetY: pos.y - table.y,
+                    });
+                }
+                return;
+            }
+
+            const zonePolygon = target.closest('.zone-polygon');
+            if (zonePolygon) {
+                setSelectedElement(zonePolygon.id);
+                return;
+            }
+        }
         
-        if (e.target !== e.currentTarget && tool !== 'zone') return;
-
-
-        if (tool === 'wall') {
-            setIsDrawingWall(true);
-            setNewWall([{ ...pos }, { ...pos }]);
-        } else if (tool === 'table') {
-            const newTable = {
-                id: `table-${Date.now()}`,
-                x: pos.x,
-                y: pos.y,
-                width: 80,
-                height: 80,
-                rotation: 0,
-                type: 'rettangolare',
-                number: tables.length + 1,
-                capienza: 4,
-            };
-            setTables(prev => [...prev, newTable]);
-            setSelectedElement(newTable.id);
-            setTool('select');
-        } else if (tool === 'zone') {
-            setIsDrawingZone(true);
-            setNewZonePoints(prev => [...prev, pos]);
-        } else if (tool === 'select') {
-            if (e.target === e.currentTarget) {
-                 setSelectedElement(null);
+        // If clicking on background
+        if (target === e.currentTarget) {
+            if (tool === 'select') {
+                setSelectedElement(null);
+            } else if (tool === 'wall') {
+                setIsDrawingWall(true);
+                setNewWall([{ ...pos }, { ...pos }]);
+            } else if (tool === 'table') {
+                const newTable = {
+                    id: `table-${Date.now()}`,
+                    x: pos.x,
+                    y: pos.y,
+                    width: 80,
+                    height: 80,
+                    rotation: 0,
+                    type: 'rettangolare',
+                    number: tables.length + 1,
+                    capienza: 4,
+                };
+                setTables(prev => [...prev, newTable]);
+                setSelectedElement(newTable.id);
+                setTool('select');
+            } else if (tool === 'zone') {
+                setIsDrawingZone(true);
+                setNewZonePoints(prev => [...prev, pos]);
             }
         }
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
-        if (!isDrawingWall || tool !== 'wall' || !newWall) return;
         const pos = getMousePosition(e);
-        setNewWall([newWall[0], { ...pos }]);
+        
+        if (isDrawingWall && tool === 'wall' && newWall) {
+            setNewWall([newWall[0], { ...pos }]);
+        } else if (interaction.type === 'move-table' && interaction.id) {
+            setTables(currentTables => 
+                currentTables.map(t => 
+                    t.id === interaction.id 
+                        ? { ...t, x: pos.x - interaction.offsetX, y: pos.y - interaction.offsetY } 
+                        : t
+                )
+            );
+        }
     };
 
     const handleMouseUp = (e: React.MouseEvent) => {
-        if (!isDrawingWall || tool !== 'wall' || !newWall) return;
-        setIsDrawingWall(false);
-        const dx = newWall[1].x - newWall[0].x;
-        const dy = newWall[1].y - newWall[0].y;
-        if (Math.sqrt(dx*dx + dy*dy) > 5) {
-            setWalls(prevWalls => [...prevWalls, newWall]);
+        if (interaction.type !== 'none') {
+            setInteraction({ type: 'none', id: null, offsetX: 0, offsetY: 0 });
         }
-        setNewWall(null);
+
+        if (isDrawingWall && tool === 'wall' && newWall) {
+            setIsDrawingWall(false);
+            const dx = newWall[1].x - newWall[0].x;
+            const dy = newWall[1].y - newWall[0].y;
+            if (Math.sqrt(dx*dx + dy*dy) > 5) {
+                setWalls(prevWalls => [...prevWalls, newWall]);
+            }
+            setNewWall(null);
+        }
     };
 
     const handleDoubleClick = (e: React.MouseEvent) => {
@@ -251,13 +298,6 @@ export function FloorPlanEditor() {
             setNewZonePoints([]);
             setSelectedElement(newZone.id);
             setTool('select');
-        }
-    }
-
-    const handleElementClick = (e: React.MouseEvent, id: string) => {
-        e.stopPropagation();
-        if (tool === 'select') {
-            setSelectedElement(id);
         }
     }
     
@@ -368,7 +408,7 @@ export function FloorPlanEditor() {
             </ToggleGroup>
        </div>
 
-      <svg className="flex-1" viewBox="0 0 2000 2000" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onDoubleClick={handleDoubleClick}>
+      <svg ref={svgRef} className="flex-1" viewBox="0 0 2000 2000" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onDoubleClick={handleDoubleClick}>
         <defs>
             <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
                 <path d="M 20 0 L 0 0 0 20" fill="none" stroke="hsl(var(--border))" strokeWidth="0.5"/>
@@ -380,13 +420,13 @@ export function FloorPlanEditor() {
         {/* Zones */}
         {zones.map(zone => (
             <polygon
+                id={zone.id}
                 key={zone.id}
                 points={zone.path.map((p: any) => `${p.x},${p.y}`).join(' ')}
                 fill={zone.colore}
                 stroke={selectedElement === zone.id ? 'hsl(var(--primary))' : zone.colore.replace(/[\d\.]+\)$/, '1)')}
                 strokeWidth={selectedElement === zone.id ? 3 : 2}
-                onClick={(e) => handleElementClick(e, zone.id)}
-                className="cursor-pointer"
+                className="cursor-pointer zone-polygon"
             />
         ))}
 
@@ -399,9 +439,10 @@ export function FloorPlanEditor() {
                     stroke="hsl(var(--primary))"
                     strokeWidth="2"
                     strokeDasharray="4 4"
+                    className="pointer-events-none"
                 />
                 {newZonePoints.map((p, i) => (
-                    <circle key={i} cx={p.x} cy={p.y} r="4" fill={i === 0 ? "hsl(var(--primary))" : "white"} stroke="hsl(var(--primary))" strokeWidth="2" />
+                    <circle key={i} cx={p.x} cy={p.y} r="4" fill={i === 0 ? "hsl(var(--primary))" : "white"} stroke="hsl(var(--primary))" strokeWidth="2" className="pointer-events-none" />
                 ))}
             </>
         )}
@@ -417,12 +458,12 @@ export function FloorPlanEditor() {
 
         {/* Tables */}
         {tables.map(table => (
-            <Table 
-                key={table.id}
-                {...table}
-                selected={selectedElement === table.id}
-                onClick={(e: React.MouseEvent) => handleElementClick(e, table.id)}
-            />
+            <g id={table.id} key={table.id} className="table-group">
+                <Table 
+                    {...table}
+                    selected={selectedElement === table.id}
+                />
+            </g>
         ))}
 
       </svg>
