@@ -36,11 +36,11 @@ import {
 } from "@/components/ui/select";
 
 
-const Table = ({ x, y, width, height, rotation, type, number, capienza, selected }: any) => {
+const TableContents = ({ width, height, type, number, capienza, selected }: any) => {
   const isRound = type === 'rotondo';
   
   return (
-    <g transform={`translate(${x}, ${y}) rotate(${rotation})`} className="cursor-pointer table-group">
+    <>
       <rect 
         x={-width/2} 
         y={-height/2}
@@ -69,7 +69,7 @@ const Table = ({ x, y, width, height, rotation, type, number, capienza, selected
             </g>
         </>
       )}
-    </g>
+    </>
   );
 };
 
@@ -489,20 +489,25 @@ export function FloorPlanEditor() {
             const dx = Math.abs(endPos.x - drawing.start.x);
             const dy = Math.abs(endPos.y - drawing.start.y);
 
-            if (dx > 5 && dy > 5) {
+            // Only create if the shape is reasonably sized
+            if (dx > 5 || dy > 5) {
                 let path;
                 
                 if (drawing.shape === 'rectangle') {
+                    const x1 = drawing.start.x;
+                    const y1 = drawing.start.y;
+                    const x2 = endPos.x;
+                    const y2 = endPos.y;
                     path = [
-                        { x: drawing.start.x, y: drawing.start.y },
-                        { x: endPos.x, y: drawing.start.y },
-                        { x: endPos.x, y: endPos.y },
-                        { x: drawing.start.x, y: endPos.y },
+                        { x: Math.min(x1, x2), y: Math.min(y1, y2) },
+                        { x: Math.max(x1, x2), y: Math.min(y1, y2) },
+                        { x: Math.max(x1, x2), y: Math.max(y1, y2) },
+                        { x: Math.min(x1, x2), y: Math.max(y1, y2) },
                     ];
                 } else if (drawing.shape === 'circle') {
-                    const radius = Math.sqrt(dx * dx + dy * dy) / 2;
-                    const centerX = (drawing.start.x + endPos.x) / 2;
-                    const centerY = (drawing.start.y + endPos.y) / 2;
+                    const radius = Math.sqrt(dx * dx + dy * dy);
+                    const centerX = drawing.start.x;
+                    const centerY = drawing.start.y;
                     path = [];
                     const segments = 32;
                     for (let i = 0; i < segments; i++) {
@@ -725,8 +730,13 @@ export function FloorPlanEditor() {
 
         {/* Tables */}
         {tables.map(table => (
-            <g id={table.id} key={table.id} className="table-group">
-                <Table 
+            <g 
+                id={table.id} 
+                key={table.id} 
+                className="table-group cursor-pointer"
+                transform={`translate(${table.x}, ${table.y}) rotate(${table.rotation})`}
+            >
+                <TableContents 
                     {...table}
                     selected={selectedElement === table.id}
                 />
