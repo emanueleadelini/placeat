@@ -26,19 +26,17 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
-// Reusable components from other files. I can define them here to avoid creating new files.
-
 interface ReadOnlyTableProps extends Tavolo {
   status?: 'free' | 'booked';
   bookingDetails?: Prenotazione;
 }
 
-const ReadOnlyTable = ({ x, y, width, height, rotation, type, number, capienza, status, bookingDetails }: ReadOnlyTableProps) => {
+const ReadOnlyTable = ({ x, y, width, height, rotation, type, number, capienza, status }: ReadOnlyTableProps) => {
   const isRound = type === 'rotondo';
   const tableColor = status === 'booked' ? 'fill-destructive/20' : 'fill-card';
   const strokeColor = status === 'booked' ? 'hsl(var(--destructive))' : 'hsl(var(--border))';
 
-  const content = (
+  return (
     <g transform={`translate(${x}, ${y}) rotate(${rotation})`}>
       <rect 
         x={-width/2} 
@@ -59,32 +57,6 @@ const ReadOnlyTable = ({ x, y, width, height, rotation, type, number, capienza, 
       </text>
     </g>
   );
-
-  if (status === 'booked' && bookingDetails) {
-    return (
-      <Popover>
-        <PopoverTrigger asChild className="cursor-pointer">
-          {content}
-        </PopoverTrigger>
-        <PopoverContent className="w-60">
-          <div className="grid gap-2">
-            <h4 className="font-medium leading-none">Prenotazione</h4>
-            <p className="text-sm text-muted-foreground">
-              Tavolo {number} - Ore {bookingDetails.ora}
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-                <div>Cliente:</div>
-                <div className="font-semibold">{bookingDetails.cliente.nome}</div>
-                <div>Persone:</div>
-                <div className="font-semibold">{bookingDetails.numeroPersone}</div>
-            </div>
-          </div>
-        </PopoverContent>
-      </Popover>
-    );
-  }
-
-  return content;
 };
 
 const getPolygonCentroid = (points: {x: number, y: number}[]) => {
