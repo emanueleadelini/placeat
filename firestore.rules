@@ -99,14 +99,14 @@ service cloud.firestore {
     /**
      * @description Secures the top-level restaurant profiles.
      * @path /ristoranti/{ristoranteId}
-     * @allow A restaurant owner (create, get, update, delete) their own document.
+     * @allow A restaurant owner (create, get, update, delete) their own document. Public users can read for booking.
      *        e.g., (update) User 'owner123' can write to `/ristoranti/resto-abc` if that doc contains `proprietarioUid: 'owner123'`.
      * @deny Any user (list) the entire `/ristoranti` collection.
      *       e.g., (get) User 'other456' is denied access to `/ristoranti/resto-abc`.
      * @principle Enforces strict document ownership and prevents collection enumeration to protect all restaurant data.
      */
     match /ristoranti/{ristoranteId} {
-      allow get: if isResourceOwner(resource);
+      allow get: if true;
       allow list: if isSignedIn();
       allow create: if isRequestingOwner(request.resource.data);
       allow update: if isExistingResourceOwner(resource) && isOwnerIdImmutable(resource);
@@ -148,15 +148,15 @@ service cloud.firestore {
       /**
        * @description Secures the restaurant's table definitions for the floor plan.
        * @path /ristoranti/{ristoranteId}/tavoli/{tavoloId}
-       * @allow The restaurant owner (create, get, update, delete) their own tables. `list` is allowed for signed-in users but relies on client queries to filter.
+       * @allow The restaurant owner (create, get, update, delete) their own tables. `list` is allowed for signed-in users but relies on client queries to filter. Public can read for booking.
        *        e.g., (update) User 'owner123' can update a table doc if it has `proprietarioUid: 'owner123'`.
        * @deny Another user from modifying table data.
        *       e.g., (delete) User 'other456' cannot delete a table document.
        * @principle Relies on the denormalized `proprietarioUid` field for fast, independent authorization on subcollection documents.
        */
       match /tavoli/{tavoloId} {
-        allow get: if isResourceOwner(resource);
-        allow list: if isSignedIn();
+        allow get: if true;
+        allow list: if true;
         allow create: if isRequestingOwner(request.resource.data) && isParentRistoranteOnCreate(ristoranteId);
         allow update: if isExistingResourceOwner(resource) && isOwnerIdImmutable(resource) && isParentRistoranteImmutable(resource);
         allow delete: if isExistingResourceOwner(resource);
@@ -198,15 +198,15 @@ service cloud.firestore {
       /**
        * @description Secures the floor plan wall segments for a restaurant.
        * @path /ristoranti/{ristoranteId}/muri/{muroId}
-       * @allow The restaurant owner (create, get, update, delete) the wall segments of their floor plan. `list` is allowed for signed-in users but relies on client queries to filter.
+       * @allow The restaurant owner (create, get, update, delete) the wall segments of their floor plan. Public can read for booking.
        *        e.g., (delete) User 'owner123' can delete a wall segment if the doc has `proprietarioUid: 'owner123'`.
        * @deny Any other user from altering the floor plan.
        *       e.g., (update) User 'other456' cannot update a wall segment document.
        * @principle Relies on the denormalized `proprietarioUid` field for fast, independent authorization on subcollection documents.
        */
       match /muri/{muroId} {
-        allow get: if isResourceOwner(resource);
-        allow list: if isSignedIn();
+        allow get: if true;
+        allow list: if true;
         allow create: if isRequestingOwner(request.resource.data) && isParentRistoranteOnCreate(ristoranteId);
         allow update: if isExistingResourceOwner(resource) && isOwnerIdImmutable(resource) && isParentRistoranteImmutable(resource);
         allow delete: if isExistingResourceOwner(resource);
@@ -215,15 +215,15 @@ service cloud.firestore {
       /**
        * @description Secures the floor plan zone definitions for a restaurant.
        * @path /ristoranti/{ristoranteId}/zone/{zonaId}
-       * @allow The restaurant owner (create, get, update, delete) the zones of their floor plan. `list` is allowed for signed-in users but relies on client queries to filter.
+       * @allow The restaurant owner (create, get, update, delete) the zones of their floor plan. Public can read for booking.
        *        e.g., (get) User 'owner123' can read a zone document if it contains `proprietarioUid: 'owner123'`.
        * @deny Any other user from accessing the floor plan zones.
        *       e.g., (get) User 'other456' is denied access.
        * @principle Relies on the denormalized `proprietarioUid` field for fast, independent authorization on subcollection documents.
        */
       match /zone/{zonaId} {
-        allow get: if isResourceOwner(resource);
-        allow list: if isSignedIn();
+        allow get: if true;
+        allow list: if true;
         allow create: if isRequestingOwner(request.resource.data) && isParentRistoranteOnCreate(ristoranteId);
         allow update: if isExistingResourceOwner(resource) && isOwnerIdImmutable(resource) && isParentRistoranteImmutable(resource);
         allow delete: if isExistingResourceOwner(resource);

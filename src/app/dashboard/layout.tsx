@@ -34,10 +34,12 @@ import {
   Settings,
   Star,
   User,
+  Eye,
 } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useFirestore } from '@/firebase';
 import { signOut } from 'firebase/auth';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const navItems = [
   {
@@ -72,6 +74,8 @@ export default function DashboardLayout({
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const userAvatar = PlaceHolderImages.find(p => p.id === 'user-avatar-1');
+  const firestore = useFirestore();
+  const [ristoranteId, setRistoranteId] = React.useState<string | null>(null);
 
   const handleSignOut = async () => {
     await signOut(auth);
@@ -82,7 +86,15 @@ export default function DashboardLayout({
     if (!isUserLoading && !user) {
       router.push('/login');
     }
-  }, [user, isUserLoading, router]);
+    if (user && firestore) {
+      const q = query(collection(firestore, 'ristoranti'), where('proprietarioUid', '==', user.uid));
+      getDocs(q).then((snapshot) => {
+        if (!snapshot.empty) {
+          setRistoranteId(snapshot.docs[0].id);
+        }
+      });
+    }
+  }, [user, isUserLoading, router, firestore]);
 
   if (isUserLoading || !user) {
       return (
@@ -138,6 +150,14 @@ export default function DashboardLayout({
               <DropdownMenuLabel>Il mio account</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem><User className="mr-2 h-4 w-4" />Profilo</DropdownMenuItem>
+              {ristoranteId && (
+                <DropdownMenuItem asChild>
+                    <Link href={`/ristorante/${ristoranteId}`} target="_blank">
+                        <Eye className="mr-2 h-4 w-4" />
+                        Vedi pagina pubblica
+                    </Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem><Settings className="mr-2 h-4 w-4" />Impostazioni</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
