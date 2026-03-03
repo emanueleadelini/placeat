@@ -181,25 +181,29 @@ export default function ReservationsPage() {
   }, [user, firestore]);
 
   const timeSlots = useMemo(() => {
-    // getDay returns 0 for Sunday, 1 for Monday, etc. We need to match our string IDs.
     const dayIndex = getDay(selectedDate);
     const dayName = ['domenica', 'lunedi', 'martedi', 'mercoledi', 'giovedi', 'venerdi', 'sabato'][dayIndex];
     
-    const dayHours = openingHours.find(h => h.id === dayName);
+    const daySlots = openingHours
+        .filter(h => h.dayOfWeek === dayName && h.aperto)
+        .sort((a, b) => a.dalle.localeCompare(b.dalle));
 
-    if (!dayHours || !dayHours.aperto) return [];
+    if (daySlots.length === 0) return [];
 
-    const slots = [];
-    let currentTime = new Date(`1970-01-01T${dayHours.dalle}:00`);
-    const endTime = new Date(`1970-01-01T${dayHours.alle}:00`);
+    const allSlots: string[] = [];
     const turnDuration = ristorante?.durataTurnoDefault || 60;
 
-    while (currentTime < endTime) {
-      slots.push(format(currentTime, 'HH:mm'));
-      currentTime.setMinutes(currentTime.getMinutes() + turnDuration);
-    }
+    daySlots.forEach(slot => {
+        let currentTime = new Date(`1970-01-01T${slot.dalle}:00`);
+        const endTime = new Date(`1970-01-01T${slot.alle}:00`);
+        
+        while (currentTime < endTime) {
+            allSlots.push(format(currentTime, 'HH:mm'));
+            currentTime.setMinutes(currentTime.getMinutes() + turnDuration);
+        }
+    });
 
-    return slots;
+    return allSlots;
   }, [selectedDate, openingHours, ristorante]);
 
   useEffect(() => {

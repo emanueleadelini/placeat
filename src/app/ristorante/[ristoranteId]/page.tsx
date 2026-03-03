@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useFirestore } from '@/firebase';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
-import type { Ristorante, Tavolo, Zona, Muro } from '@/lib/types';
+import type { Ristorante, Tavolo, Zona, Muro, DailyOpeningHours } from '@/lib/types';
 import PublicBookingPage from '@/components/public-booking-page';
 import { Loader2 } from 'lucide-react';
 
@@ -16,6 +16,7 @@ export default function RistorantePage() {
   const [tavoli, setTavoli] = useState<Tavolo[]>([]);
   const [zone, setZone] = useState<Zona[]>([]);
   const [muri, setMuri] = useState<Muro[]>([]);
+  const [openingHours, setOpeningHours] = useState<DailyOpeningHours[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,7 +27,6 @@ export default function RistorantePage() {
       setLoading(true);
       setError(null);
       try {
-        // Fetch Ristorante
         const ristoranteRef = doc(firestore, 'ristoranti', ristoranteId);
         const ristoranteSnap = await getDoc(ristoranteRef);
 
@@ -37,14 +37,15 @@ export default function RistorantePage() {
         }
         setRistorante({ id: ristoranteSnap.id, ...ristoranteSnap.data() } as Ristorante);
 
-        // Fetch Tavoli
-        const tavoliCol = collection(firestore, 'ristoranti', ristoranteId, 'tavoli');
-        const tavoliSnap = await getDocs(tavoliCol);
+        const [tavoliSnap, zoneSnap, muriSnap, hoursSnap] = await Promise.all([
+            getDocs(collection(firestore, 'ristoranti', ristoranteId, 'tavoli')),
+            getDocs(collection(firestore, 'ristoranti', ristoranteId, 'zone')),
+            getDocs(collection(firestore, 'ristoranti', ristoranteId, 'muri')),
+            getDocs(collection(firestore, 'ristoranti', ristoranteId, 'dailyOpeningHours')),
+        ]);
+        
         setTavoli(tavoliSnap.docs.map(d => ({ id: d.id, ...d.data() } as Tavolo)));
 
-        // Fetch Zone
-        const zoneCol = collection(firestore, 'ristoranti', ristoranteId, 'zone');
-        const zoneSnap = await getDocs(zoneCol);
         const zoneData = zoneSnap.docs.map(d => {
             const data = d.data();
             const path = (data.pathX || []).map((x: number, i: number) => ({ x, y: (data.pathY || [])[i] ?? 0 }));
@@ -52,15 +53,14 @@ export default function RistorantePage() {
         });
         setZone(zoneData);
         
-        // Fetch Muri
-        const muriCol = collection(firestore, 'ristoranti', ristoranteId, 'muri');
-        const muriSnap = await getDocs(muriCol);
         const muriData = muriSnap.docs.map(d => {
             const data = d.data();
             const points = (data.pointsX || []).map((x: number, i: number) => ({ x, y: (data.pointsY || [])[i] ?? 0 }));
             return { id: d.id, points, spessore: data.spessore } as Muro;
         });
         setMuri(muriData);
+
+        setOpeningHours(hoursSnap.docs.map(d => ({ id: d.id, ...d.data() } as DailyOpeningHours)));
 
       } catch (err) {
         console.error("Error fetching public restaurant data:", err);
@@ -99,6 +99,7 @@ export default function RistorantePage() {
       tavoli={tavoli}
       zone={zone}
       muri={muri}
+      openingHours={openingHours}
     />
   );
 }

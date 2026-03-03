@@ -28,11 +28,13 @@ export type Ristorante = {
 };
 
 export type DailyOpeningHours = {
-    id: string; // lunedi, martedi, etc.
-    aperto: boolean;
-    dalle: string;
-    alle: string;
-}
+  id: string;
+  dayOfWeek: string;
+  aperto: boolean;
+  dalle: string;
+  alle: string;
+  slotIndex: number;
+};
 
 export type Tavolo = {
   id: string;

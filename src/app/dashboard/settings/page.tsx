@@ -11,9 +11,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useFirestore, useUser } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
-import { collection, doc, getDocs, query, where, writeBatch, setDoc } from "firebase/firestore";
+import { collection, doc, getDocs, query, where, writeBatch } from "firebase/firestore";
 import type { DailyOpeningHours, Ristorante } from "@/lib/types";
-import { Loader2 } from "lucide-react";
+import { Loader2, PlusCircle, Trash2 } from "lucide-react";
 
 const daysOfWeek = ["lunedi", "martedi", "mercoledi", "giovedi", "venerdi", "sabato", "domenica"];
 const displayDays: { [key: string]: string } = {
@@ -26,13 +26,16 @@ const displayDays: { [key: string]: string } = {
     "domenica": "Domenica"
 };
 
+type Slot = {
+    id?: string;
+    aperto: boolean;
+    dalle: string;
+    alle: string;
+};
+
 type OpeningHoursState = {
-    [key: string]: {
-        aperto: boolean;
-        dalle: string;
-        alle: string;
-    }
-}
+    [key: string]: Slot[];
+};
 
 export default function SettingsPage() {
     const { user } = useUser();
@@ -58,22 +61,31 @@ export default function SettingsPage() {
 
                     const hoursCol = collection(firestore, 'ristoranti', ristoranteDoc.id, 'dailyOpeningHours');
                     const hoursSnap = await getDocs(hoursCol);
+                    
                     const hoursData: OpeningHoursState = {};
-                    let hasData = false;
-                    daysOfWeek.forEach(day => {
-                        const dayDoc = hoursSnap.docs.find(d => d.id === day);
-                        if (dayDoc) {
-                            hasData = true;
-                            const data = dayDoc.data() as DailyOpeningHours;
-                            hoursData[day] = { aperto: data.aperto, dalle: data.dalle, alle: data.alle };
+                    daysOfWeek.forEach(day => hoursData[day] = []);
+
+                    hoursSnap.docs.forEach(docSnap => {
+                        const data = docSnap.data() as DailyOpeningHours;
+                        if (hoursData[data.dayOfWeek]) {
+                             hoursData[data.dayOfWeek].push({
+                                id: docSnap.id,
+                                aperto: data.aperto,
+                                dalle: data.dalle,
+                                alle: data.alle,
+                            });
                         }
                     });
 
-                    if (!hasData) {
-                         daysOfWeek.forEach(day => {
-                            hoursData[day] = { aperto: true, dalle: "19:00", alle: "23:00" };
-                         });
-                    }
+                    // Ensure every day has at least one slot for the UI and sort them
+                    daysOfWeek.forEach(day => {
+                        if (hoursData[day].length === 0) {
+                            hoursData[day].push({ aperto: true, dalle: "19:00", alle: "23:00" });
+                        } else {
+                            hoursData[day].sort((a, b) => (a.dalle || "").localeCompare(b.dalle || ""));
+                        }
+                    });
+
                     setOpeningHours(hoursData);
                 }
                 setLoading(false);
@@ -85,14 +97,36 @@ export default function SettingsPage() {
         }
     }, [user, firestore, toast]);
 
-    const handleHourChange = (day: string, field: 'aperto' | 'dalle' | 'alle', value: string | boolean) => {
-        setOpeningHours(prev => ({
-            ...prev,
-            [day]: {
-                ...prev[day],
-                [field]: value
+    const handleHourChange = (day: string, slotIndex: number, field: 'aperto' | 'dalle' | 'alle', value: string | boolean) => {
+        setOpeningHours(prev => {
+            const newDaySlots = [...(prev[day] || [])];
+            if (newDaySlots[slotIndex]) {
+                (newDaySlots[slotIndex] as any)[field] = value;
             }
-        }));
+            return { ...prev, [day]: newDaySlots };
+        });
+    };
+
+    const addSlot = (day: string) => {
+        setOpeningHours(prev => {
+            const daySlots = prev[day] || [];
+            if (daySlots.length < 2) {
+                const newSlots = [...daySlots, { aperto: true, dalle: "12:00", alle: "15:00" }];
+                return { ...prev, [day]: newSlots };
+            }
+            return prev;
+        });
+    };
+
+    const removeSlot = (day: string, slotIndex: number) => {
+        setOpeningHours(prev => {
+            const daySlots = [...(prev[day] || [])];
+            if (daySlots.length > 1) {
+                daySlots.splice(slotIndex, 1);
+                return { ...prev, [day]: daySlots };
+            }
+            return prev;
+        });
     };
     
     const handleInfoChange = (field: keyof Ristorante, value: any) => {
@@ -105,7 +139,6 @@ export default function SettingsPage() {
         try {
             const batch = writeBatch(firestore);
 
-            // Save restaurant info
             const ristoranteRef = doc(firestore, 'ristoranti', ristoranteId);
             batch.update(ristoranteRef, {
                 nome: ristorante.nome,
@@ -115,18 +148,32 @@ export default function SettingsPage() {
                 email: ristorante.email
             });
 
-            // Save opening hours
             const hoursColRef = collection(firestore, 'ristoranti', ristoranteId, 'dailyOpeningHours');
+            const existingHoursSnap = await getDocs(hoursColRef);
+            existingHoursSnap.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+
             for (const day of daysOfWeek) {
-                const dayRef = doc(hoursColRef, day);
-                const data = {
-                    ...openingHours[day],
-                    dayOfWeek: day,
-                    ristoranteId: ristoranteId,
-                    proprietarioUid: user.uid,
-                };
-                batch.set(dayRef, data);
+                const slots = openingHours[day] || [];
+                slots.forEach((slot, index) => {
+                    const isDayChecked = slot.aperto; 
+                    if (isDayChecked && slot.dalle && slot.alle) {
+                        const newHourRef = doc(collection(firestore, 'ristoranti', ristoranteId, 'dailyOpeningHours'));
+                        const data = {
+                            dayOfWeek: day,
+                            aperto: true,
+                            dalle: slot.dalle,
+                            alle: slot.alle,
+                            slotIndex: index + 1,
+                            ristoranteId: ristoranteId,
+                            proprietarioUid: user.uid,
+                        };
+                        batch.set(newHourRef, data);
+                    }
+                });
             }
+
 
             await batch.commit();
             toast({ title: "Successo", description: "Impostazioni salvate correttamente." });
@@ -214,39 +261,61 @@ export default function SettingsPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Orari di Apertura</CardTitle>
-                            <CardDescription>Definisci quando il tuo ristorante è aperto al pubblico.</CardDescription>
+                            <CardDescription>Definisci quando il tuo ristorante è aperto, anche su più turni (es. pranzo e cena).</CardDescription>
                         </CardHeader>
                         <CardContent className="grid gap-4">
                             {daysOfWeek.map(day => (
-                                <div key={day} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg">
-                                    <div className="flex items-center gap-3 mb-4 sm:mb-0">
-                                    <Checkbox 
-                                        id={`cb-${day}`} 
-                                        checked={openingHours[day]?.aperto ?? false} 
-                                        onCheckedChange={(checked) => handleHourChange(day, 'aperto', !!checked)}
-                                    />
-                                    <Label htmlFor={`cb-${day}`} className="font-medium w-24 capitalize">{displayDays[day]}</Label>
+                                <div key={day} className="p-4 border rounded-lg">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-3">
+                                            <Checkbox
+                                                id={`cb-${day}`}
+                                                checked={openingHours[day]?.[0]?.aperto ?? false}
+                                                onCheckedChange={(checked) => handleHourChange(day, 0, 'aperto', !!checked)}
+                                            />
+                                            <Label htmlFor={`cb-${day}`} className="font-medium text-lg capitalize">{displayDays[day]}</Label>
+                                        </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => addSlot(day)}
+                                            disabled={(openingHours[day]?.length ?? 0) >= 2 || !openingHours[day]?.[0]?.aperto}
+                                        >
+                                            <PlusCircle className="mr-2 h-4 w-4" />
+                                            Aggiungi turno
+                                        </Button>
                                     </div>
-                                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                                    <Input 
-                                        type="time" 
-                                        value={openingHours[day]?.dalle || ''} 
-                                        onChange={e => handleHourChange(day, 'dalle', e.target.value)}
-                                        disabled={!openingHours[day]?.aperto}
-                                    />
-                                    <span>-</span>
-                                    <Input 
-                                        type="time" 
-                                        value={openingHours[day]?.alle || ''}
-                                        onChange={e => handleHourChange(day, 'alle', e.target.value)}
-                                        disabled={!openingHours[day]?.aperto}
-                                    />
+                                    <div className="grid gap-4">
+                                    {(openingHours[day] || []).map((slot, index) => (
+                                        <div key={index} className="flex items-center gap-2">
+                                            <Input
+                                                type="time"
+                                                value={slot.dalle}
+                                                onChange={e => handleHourChange(day, index, 'dalle', e.target.value)}
+                                                disabled={!slot.aperto}
+                                            />
+                                            <span>-</span>
+                                            <Input
+                                                type="time"
+                                                value={slot.alle}
+                                                onChange={e => handleHourChange(day, index, 'alle', e.target.value)}
+                                                disabled={!slot.aperto}
+                                            />
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => removeSlot(day, index)}
+                                                disabled={(openingHours[day]?.length ?? 0) <= 1}
+                                            >
+                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                            </Button>
+                                        </div>
+                                    ))}
                                     </div>
                                 </div>
                             ))}
                         </CardContent>
                     </Card>
-
                 </TabsContent>
 
                 <TabsContent value="piano" className="mt-6">

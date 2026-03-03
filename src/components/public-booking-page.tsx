@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import type { Prenotazione, Ristorante, Tavolo, Zona, Muro } from '@/lib/types';
+import { useState, useMemo } from 'react';
+import type { Prenotazione, Ristorante, Tavolo, Zona, Muro, DailyOpeningHours } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar as CalendarIcon, User, Minus, Plus, PartyPopper } from 'lucide-react';
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { format } from "date-fns"
+import { format, getDay } from "date-fns"
 import { it } from "date-fns/locale"
 import { cn } from '@/lib/utils';
 import { DraftingCompass } from 'lucide-react';
@@ -89,9 +89,10 @@ interface PublicBookingPageProps {
   tavoli: Tavolo[];
   zone: Zona[];
   muri: Muro[];
+  openingHours: DailyOpeningHours[];
 }
 
-export default function PublicBookingPage({ ristorante, tavoli, zone, muri }: PublicBookingPageProps) {
+export default function PublicBookingPage({ ristorante, tavoli, zone, muri, openingHours }: PublicBookingPageProps) {
   const [date, setDate] = useState<Date>();
   const [time, setTime] = useState('');
   const [partySize, setPartySize] = useState(2);
@@ -104,8 +105,33 @@ export default function PublicBookingPage({ ristorante, tavoli, zone, muri }: Pu
   const { toast } = useToast();
   const firestore = useFirestore();
   
-  // This would eventually be dynamic based on opening hours
-  const availableTimes = ['19:00', '19:30', '20:00', '20:30', '21:00', '21:30'];
+  const availableTimes = useMemo(() => {
+    if (!date) return [];
+
+    const dayIndex = getDay(date);
+    const dayName = ['domenica', 'lunedi', 'martedi', 'mercoledi', 'giovedi', 'venerdi', 'sabato'][dayIndex];
+
+    const daySlots = openingHours
+        .filter(h => h.dayOfWeek === dayName && h.aperto)
+        .sort((a, b) => a.dalle.localeCompare(b.dalle));
+
+    if (daySlots.length === 0) return [];
+    
+    const allSlots: string[] = [];
+    const turnDuration = ristorante?.durataTurnoDefault || 60;
+
+    daySlots.forEach(slot => {
+        let currentTime = new Date(`1970-01-01T${slot.dalle}:00`);
+        const endTime = new Date(`1970-01-01T${slot.alle}:00`);
+        
+        while (currentTime < endTime) {
+            allSlots.push(format(currentTime, 'HH:mm'));
+            currentTime.setMinutes(currentTime.getMinutes() + turnDuration);
+        }
+    });
+
+    return allSlots;
+  }, [date, openingHours, ristorante?.durataTurnoDefault]);
   
   const handleCheckAvailability = async () => {
     if (!date || !time) {
