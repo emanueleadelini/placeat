@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -7,9 +9,14 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
+  CardDescription,
 } from '@/components/ui/card';
-import { Check, DraftingCompass, Sparkles, Star } from 'lucide-react';
+import { Check, DraftingCompass, Sparkles, Star, Search, Loader2 } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { useState, useEffect } from 'react';
+import { useFirestore } from '@/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+import { Input } from '@/components/ui/input';
 
 function Header() {
   return (
@@ -23,6 +30,7 @@ function Header() {
         </div>
         <nav className="flex flex-1 items-center space-x-6 text-sm font-medium">
           <Link href="#features">Funzionalità</Link>
+          <Link href="#restaurants">Ristoranti</Link>
           <Link href="#pricing">Prezzi</Link>
         </nav>
         <div className="flex items-center justify-end space-x-4">
@@ -145,6 +153,107 @@ function Features() {
   );
 }
 
+function RegisteredRestaurants() {
+    const [ristoranti, setRistoranti] = useState<any[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filteredRistoranti, setFilteredRistoranti] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const firestore = useFirestore();
+
+    useEffect(() => {
+        if (!firestore) return;
+
+        const fetchRistoranti = async () => {
+            setLoading(true);
+            try {
+                const ristorantiCol = collection(firestore, 'ristoranti');
+                const ristorantiSnap = await getDocs(ristorantiCol);
+                const ristorantiList = ristorantiSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setRistoranti(ristorantiList);
+                setFilteredRistoranti(ristorantiList);
+            } catch (error) {
+                console.error("Error fetching restaurants:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchRistoranti();
+    }, [firestore]);
+
+    useEffect(() => {
+        const lowercasedQuery = searchQuery.toLowerCase();
+        const filtered = ristoranti.filter(r =>
+            (r.nome && r.nome.toLowerCase().includes(lowercasedQuery)) ||
+            (r.indirizzo && r.indirizzo.toLowerCase().includes(lowercasedQuery)) ||
+            (r.tipo && r.tipo.toLowerCase().includes(lowercasedQuery))
+        );
+        setFilteredRistoranti(filtered);
+    }, [searchQuery, ristoranti]);
+
+    const restaurantImage = PlaceHolderImages.find(p => p.id === 'hero-image');
+
+    return (
+        <section id="restaurants" className="container py-20 md:py-28 bg-muted/20">
+            <div className="grid gap-4 text-center">
+                <h2 className="text-3xl font-bold md:text-4xl">Trova il tuo Ristorante</h2>
+                <p className="text-muted-foreground">Esplora i locali iscritti a PLACEAT e prenota il tuo tavolo.</p>
+            </div>
+            
+            <div className="max-w-2xl mx-auto my-8 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    type="text"
+                    placeholder="Cerca per nome, indirizzo o tipo di cucina..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10"
+                />
+            </div>
+
+            {loading ? (
+                <div className="flex justify-center items-center h-40">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+            ) : (
+                filteredRistoranti.length > 0 ? (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
+                        {filteredRistoranti.map(ristorante => (
+                            <Link key={ristorante.id} href={`/ristorante/${ristorante.id}`} className="group block h-full">
+                                <Card className="h-full flex flex-col hover:shadow-xl transition-shadow duration-300 cursor-pointer overflow-hidden">
+                                    {restaurantImage && (
+                                        <div className="overflow-hidden">
+                                            <Image 
+                                                src={restaurantImage.imageUrl} 
+                                                alt={ristorante.nome} 
+                                                width={600} 
+                                                height={400} 
+                                                className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
+                                            />
+                                        </div>
+                                    )}
+                                    <CardHeader>
+                                        <CardTitle>{ristorante.nome}</CardTitle>
+                                        <CardDescription className="capitalize">{ristorante.tipo}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="flex-1">
+                                        <p className="text-sm text-muted-foreground">{ristorante.indirizzo}</p>
+                                    </CardContent>
+                                </Card>
+                            </Link>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center text-muted-foreground mt-12 bg-background p-8 rounded-lg border border-dashed">
+                        <p className="font-semibold">Nessun ristorante trovato</p>
+                        <p className="text-sm">Prova a modificare la ricerca o esplora tutti i locali.</p>
+                    </div>
+                )
+            )}
+        </section>
+    );
+}
+
 function Pricing() {
   return (
     <section id="pricing" className="container py-20 md:py-28">
@@ -242,6 +351,7 @@ export default function Home() {
       <main className="flex-1">
         <Hero />
         <Features />
+        <RegisteredRestaurants />
         <Pricing />
       </main>
       <Footer />

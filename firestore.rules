@@ -14,10 +14,9 @@
  * Key Security Decisions:
  * - Strict Ownership: All access (read and write) to a restaurant's data and its subcollections is restricted to the
  *   authenticated user whose UID matches the `proprietarioUid` field on the documents.
- * - No Public Data: There are no publicly readable collections. All data is protected.
- * - Restaurant Listing Disabled: To prevent data scraping and protect restaurant owner privacy, listing the top-level
- *   `/ristoranti` collection is explicitly disallowed.
- * - Subcollection Listing: Listing subcollections is allowed for authenticated users, but client-side queries
+ * - Public Listing for Restaurants: The top-level /ristoranti collection is publicly listable to allow users to
+ *   browse restaurants on the landing page. Individual document reads are also public for booking pages.
+ * - Subcollection Listing: Listing subcollections is allowed for authenticated owners, but client-side queries
  *   MUST enforce ownership by filtering on `proprietarioUid` to ensure users only see their own data.
  *
  * Denormalization for Authorization:
@@ -99,15 +98,15 @@ service cloud.firestore {
     /**
      * @description Secures the top-level restaurant profiles.
      * @path /ristoranti/{ristoranteId}
-     * @allow A restaurant owner (create, get, update, delete) their own document. Public users can read for booking.
+     * @allow A restaurant owner (create, update, delete) their own document. Public users can read and list for booking.
      *        e.g., (update) User 'owner123' can write to `/ristoranti/resto-abc` if that doc contains `proprietarioUid: 'owner123'`.
-     * @deny Any user (list) the entire `/ristoranti` collection.
-     *       e.g., (get) User 'other456' is denied access to `/ristoranti/resto-abc`.
-     * @principle Enforces strict document ownership and prevents collection enumeration to protect all restaurant data.
+     * @deny Any other user from modifying a restaurant they don't own.
+     *       e.g., (get) User 'other456' is denied from updating `/ristoranti/resto-abc`.
+     * @principle Enforces strict document ownership for writes, while allowing public reads for discovery.
      */
     match /ristoranti/{ristoranteId} {
       allow get: if true;
-      allow list: if isSignedIn();
+      allow list: if true;
       allow create: if isRequestingOwner(request.resource.data);
       allow update: if isExistingResourceOwner(resource) && isOwnerIdImmutable(resource);
       allow delete: if isExistingResourceOwner(resource);
