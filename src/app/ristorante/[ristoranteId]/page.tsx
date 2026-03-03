@@ -47,7 +47,7 @@ export default function RistorantePage() {
         const zoneSnap = await getDocs(zoneCol);
         const zoneData = zoneSnap.docs.map(d => {
             const data = d.data();
-            const path = (data.pathX || []).map((x: number, i: number) => ({ x, y: data.pathY[i] }));
+            const path = (data.pathX || []).map((x: number, i: number) => ({ x, y: (data.pathY || [])[i] ?? 0 }));
             return { id: d.id, path, nome: data.nome, colore: data.colore } as Zona;
         });
         setZone(zoneData);
@@ -57,7 +57,7 @@ export default function RistorantePage() {
         const muriSnap = await getDocs(muriCol);
         const muriData = muriSnap.docs.map(d => {
             const data = d.data();
-            const points = (data.pointsX || []).map((x: number, i: number) => ({ x, y: data.pointsY[i] }));
+            const points = (data.pointsX || []).map((x: number, i: number) => ({ x, y: (data.pointsY || [])[i] ?? 0 }));
             return { id: d.id, points, spessore: data.spessore } as Muro;
         });
         setMuri(muriData);

@@ -90,6 +90,20 @@ service cloud.firestore {
     function isParentRistoranteImmutable(doc) {
       return request.resource.data.ristoranteId == doc.data.ristoranteId;
     }
+    
+    /**
+     * Validates the structure of a public reservation creation request.
+     */
+    function isValidPublicPrenotazione() {
+      let data = request.resource.data;
+      return data.cliente.nome is string 
+        && data.cliente.nome.size() > 0 
+        && data.cliente.telefono is string 
+        && data.cliente.telefono.size() > 0
+        && data.numeroPersone > 0
+        && data.stato == 'confermata';
+    }
+
 
     // --------------------------------
     // Collection Rules
@@ -181,15 +195,14 @@ service cloud.firestore {
       /**
        * @description Secures reservation data for a restaurant.
        * @path /ristoranti/{ristoranteId}/prenotazioni/{prenotazioneId}
-       * @allow The restaurant owner (create, get, update, delete) their reservations. `list` is allowed for signed-in users but relies on client queries to filter.
-       *        e.g., (create) User 'owner123' can add a reservation if the new data has `proprietarioUid: 'owner123'`.
+       * @allow The restaurant owner can manage their reservations. Public users can create reservations and list them for availability checks.
        * @deny Another user from viewing or modifying reservations.
        * @principle Relies on the denormalized `proprietarioUid` field for fast, independent authorization on subcollection documents.
        */
       match /prenotazioni/{prenotazioneId} {
         allow get: if isResourceOwner(resource);
-        allow list: if isSignedIn();
-        allow create: if isRequestingOwner(request.resource.data) && isParentRistoranteOnCreate(ristoranteId);
+        allow list: if true;
+        allow create: if isParentRistoranteOnCreate(ristoranteId) && isValidPublicPrenotazione();
         allow update: if isExistingResourceOwner(resource) && isOwnerIdImmutable(resource) && isParentRistoranteImmutable(resource);
         allow delete: if isExistingResourceOwner(resource);
       }
