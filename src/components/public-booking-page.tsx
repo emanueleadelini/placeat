@@ -354,7 +354,7 @@ export default function PublicBookingPage({ ristorante, tavoli, zone, muri }: Pu
                                             <polygon
                                                 points={z.path.map(p => `${p.x},${p.y}`).join(' ')}
                                                 fill={z.colore}
-                                                stroke={z.colore.replace(/[\\d\\.]+\\)$/, '1)')}
+                                                stroke={z.colore ? z.colore.substring(0, 7) : 'hsl(var(--border))'}
                                                 strokeWidth="2"
                                             />
                                             <text x={centroid.x} y={centroid.y} textAnchor="middle" dy=".3em" className="fill-foreground font-bold pointer-events-none select-none" fontSize="16">{z.nome}</text>
