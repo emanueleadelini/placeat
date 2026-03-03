@@ -14,9 +14,6 @@ export type Ristorante = {
   trialEndsAt?: Timestamp;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
-  orariApertura: {
-    [key: string]: { aperto: boolean; dalle: string; alle: string }[];
-  };
   durataTurnoDefault: number;
   fusoOrario: string;
   reviewflow: {
@@ -29,6 +26,13 @@ export type Ristorante = {
   onboardingStep: number;
   createdAt: Timestamp;
 };
+
+export type DailyOpeningHours = {
+    id: string; // lunedi, martedi, etc.
+    aperto: boolean;
+    dalle: string;
+    alle: string;
+}
 
 export type Tavolo = {
   id: string;
@@ -47,6 +51,8 @@ export type Tavolo = {
 
 export type Prenotazione = {
   id: string;
+  ristoranteId: string;
+  customerId: string;
   cliente: {
     nome: string;
     telefono: string;
