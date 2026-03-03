@@ -199,7 +199,7 @@ const PropertiesPanel = ({ selectedTable, selectedZone, onUpdateTable, onDeleteT
 
 
 export const FloorPlanEditor = forwardRef(function FloorPlanEditor(
-    { ristoranteId }: { ristoranteId: string },
+    { ristoranteId }: { ristoranteId?: string },
     ref
 ) {
     const [tool, setTool] = useState('select');
@@ -452,13 +452,13 @@ export const FloorPlanEditor = forwardRef(function FloorPlanEditor(
             }
             const newTable = {
                 id: `tavolo-${Date.now()}`,
+                numero: tables.length + 1,
                 x: pos.x,
                 y: pos.y,
                 width: 80,
                 height: 80,
                 rotation: 0,
                 type: 'rettangolare',
-                numero: tables.length + 1,
                 capienza: 4,
                 zona: zoneName,
             };
@@ -837,5 +837,4 @@ export const FloorPlanEditor = forwardRef(function FloorPlanEditor(
     </TooltipProvider>
   );
 });
-
     

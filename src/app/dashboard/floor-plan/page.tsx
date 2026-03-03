@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Circle, PenLine, Save, Layers, Square as SquareIcon, Loader2 } from 'lucide-react';
 import { useFirestore, useUser } from '@/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 export default function FloorPlanPage() {
@@ -22,12 +22,53 @@ export default function FloorPlanPage() {
   useEffect(() => {
     if (user && firestore) {
       const q = query(collection(firestore, 'ristoranti'), where('proprietarioUid', '==', user.uid));
-      getDocs(q).then(snapshot => {
+      getDocs(q).then(async snapshot => {
         if (!snapshot.empty) {
           // Assuming one user owns one restaurant for this context
           setRistoranteId(snapshot.docs[0].id);
+          setLoading(false);
+        } else {
+            // No restaurant found, create a new one for the user
+            if (user && firestore) {
+                const newRistoranteRef = doc(collection(firestore, 'ristoranti'));
+                const newRistoranteData = {
+                    id: newRistoranteRef.id,
+                    proprietarioUid: user.uid,
+                    email: user.email,
+                    nome: `Ristorante di ${user.displayName || user.email}`,
+                    tipo: 'ristorante',
+                    indirizzo: '',
+                    telefono: '',
+                    stato: 'trial',
+                    piano: 'pro',
+                    durataTurnoDefault: 90,
+                    fusoOrario: 'Europe/Rome',
+                    onboardingCompletato: false,
+                    onboardingStep: 0,
+                    createdAt: serverTimestamp(),
+                    trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+                };
+                try {
+                  await setDoc(newRistoranteRef, newRistoranteData);
+                  setRistoranteId(newRistoranteRef.id);
+                  toast({
+                      title: "Ristorante creato!",
+                      description: "Abbiamo creato un profilo per il tuo ristorante. Ora puoi creare la piantina.",
+                  });
+                } catch (e) {
+                  console.error("Error creating default restaurant: ", e);
+                  toast({
+                    title: "Errore di creazione",
+                    description: "Impossibile creare un ristorante di default.",
+                    variant: "destructive"
+                  });
+                } finally {
+                  setLoading(false);
+                }
+            } else {
+              setLoading(false);
+            }
         }
-        setLoading(false);
       }).catch(err => {
         console.error("Error fetching ristoranteId: ", err);
         setLoading(false);
@@ -154,7 +195,7 @@ export default function FloorPlanPage() {
           ) : (
              <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8">
                 <p className="font-semibold">Ristorante non trovato.</p>
-                <p className="text-sm">Completa l'onboarding per configurare il tuo ristorante prima di creare una piantina.</p>
+                <p className="text-sm">Si è verificato un errore nel caricamento del tuo ristorante. Riprova o contatta il supporto.</p>
               </div>
           )}
         </div>
