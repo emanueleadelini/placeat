@@ -109,7 +109,7 @@ function Features() {
       icon: <Sparkles className="w-8 h-8 text-primary" />,
       title: 'Onboarding Zero-Touch',
       description:
-        'Registrati e configura il tuo ristorante in 10 minuti. Nessuna chiamata, nessuna email, nessun agente. Inizia subito, in autonomia.',
+        'Registrati e configura il tuo ristorante in 10 minuti. Nessuna chiamata, nessuna email, nessuna agente. Inizia subito, in autonomia.',
     },
   ];
 

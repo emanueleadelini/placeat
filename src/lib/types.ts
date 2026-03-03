@@ -16,7 +16,7 @@ export type Ristorante = {
   stripeSubscriptionId?: string;
   durataTurnoDefault: number;
   fusoOrario: string;
-  reviewflow: {
+  reviewflow?: {
     attivo: boolean;
     googleLink: string;
     timingInvio: number;

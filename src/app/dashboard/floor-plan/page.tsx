@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Circle, PenLine, Save, Layers, Square as SquareIcon, Loader2, Wrench } from 'lucide-react';
 import { useFirestore, useUser } from '@/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import type { Ristorante } from '@/lib/types';
 
 export default function FloorPlanPage() {
   const editorRef = useRef<{ publish: () => Promise<void> }>(null);
@@ -23,12 +24,48 @@ export default function FloorPlanPage() {
   useEffect(() => {
     if (user && firestore) {
       const q = query(collection(firestore, 'ristoranti'), where('proprietarioUid', '==', user.uid));
-      getDocs(q).then(snapshot => {
+      getDocs(q).then(async (snapshot) => {
         if (!snapshot.empty) {
           // Assuming one user owns one restaurant for this context
           setRistoranteId(snapshot.docs[0].id);
+          setLoading(false);
+        } else {
+          // No restaurant found, create a default one to unblock the user
+          const newRistoranteRef = doc(collection(firestore, 'ristoranti'));
+          const newRistoranteData: Partial<Ristorante> = {
+            proprietarioUid: user.uid,
+            nome: "Il Mio Ristorante",
+            email: user.email || "",
+            onboardingCompletato: false,
+            onboardingStep: 3, // Let's assume they are at the floor plan step
+            // Add other required default fields from your Ristorante type
+            tipo: 'ristorante',
+            indirizzo: '',
+            telefono: '',
+            stato: 'trial',
+            piano: 'free',
+            durataTurnoDefault: 60,
+            fusoOrario: 'Europe/Rome',
+            createdAt: new Date() as any, // Will be converted to Timestamp by Firestore
+          };
+          try {
+            await setDoc(newRistoranteRef, newRistoranteData);
+            setRistoranteId(newRistoranteRef.id);
+            toast({
+              title: "Profilo creato!",
+              description: "Abbiamo creato un profilo di base per il tuo ristorante così puoi iniziare subito.",
+            });
+          } catch(err) {
+             console.error("Error creating default restaurant: ", err);
+              toast({
+                title: "Errore",
+                description: "Impossibile creare un profilo per il tuo ristorante. Ricarica la pagina.",
+                variant: "destructive"
+              })
+          } finally {
+            setLoading(false);
+          }
         }
-        setLoading(false);
       }).catch(err => {
         console.error("Error fetching ristoranteId: ", err);
         setLoading(false);

@@ -797,7 +797,7 @@ export const FloorPlanEditor = forwardRef(function FloorPlanEditor(
               <polygon
                   points={zone.path.map((p: any) => `${p.x},${p.y}`).join(' ')}
                   fill={zone.colore}
-                  stroke={selectedElement === zone.id ? 'hsl(var(--primary))' : zone.colore.replace(/[\d\.]+\)$/, '1)')}
+                  stroke={selectedElement === zone.id ? 'hsl(var(--primary))' : (zone.colore ? zone.colore.substring(0, 7) : 'hsl(var(--border))')}
                   strokeWidth={selectedElement === zone.id ? 3 : 2}
                   className="zone-polygon"
               />
