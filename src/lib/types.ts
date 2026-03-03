@@ -8,7 +8,7 @@ export type Ristorante = {
   geo?: GeoPoint;
   telefono: string;
   email: string;
-  proprietario_uid: string;
+  proprietarioUid: string;
   stato: 'trial' | 'active' | 'past_due' | 'cancelled';
   piano: 'free' | 'pro' | 'multi';
   trialEndsAt?: Timestamp;

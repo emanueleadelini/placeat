@@ -4,10 +4,11 @@ import { useRef, useState, useEffect } from 'react';
 import { FloorPlanEditor } from '@/components/floor-plan-editor/editor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Circle, PenLine, Save, Layers, Square as SquareIcon, Loader2 } from 'lucide-react';
+import { Circle, PenLine, Save, Layers, Square as SquareIcon, Loader2, Wrench } from 'lucide-react';
 import { useFirestore, useUser } from '@/firebase';
-import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
 
 export default function FloorPlanPage() {
   const editorRef = useRef<{ publish: () => Promise<void> }>(null);
@@ -22,53 +23,12 @@ export default function FloorPlanPage() {
   useEffect(() => {
     if (user && firestore) {
       const q = query(collection(firestore, 'ristoranti'), where('proprietarioUid', '==', user.uid));
-      getDocs(q).then(async snapshot => {
+      getDocs(q).then(snapshot => {
         if (!snapshot.empty) {
           // Assuming one user owns one restaurant for this context
           setRistoranteId(snapshot.docs[0].id);
-          setLoading(false);
-        } else {
-            // No restaurant found, create a new one for the user
-            if (user && firestore) {
-                const newRistoranteRef = doc(collection(firestore, 'ristoranti'));
-                const newRistoranteData = {
-                    id: newRistoranteRef.id,
-                    proprietarioUid: user.uid,
-                    email: user.email,
-                    nome: `Ristorante di ${user.displayName || user.email}`,
-                    tipo: 'ristorante',
-                    indirizzo: '',
-                    telefono: '',
-                    stato: 'trial',
-                    piano: 'pro',
-                    durataTurnoDefault: 90,
-                    fusoOrario: 'Europe/Rome',
-                    onboardingCompletato: false,
-                    onboardingStep: 0,
-                    createdAt: serverTimestamp(),
-                    trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
-                };
-                try {
-                  await setDoc(newRistoranteRef, newRistoranteData);
-                  setRistoranteId(newRistoranteRef.id);
-                  toast({
-                      title: "Ristorante creato!",
-                      description: "Abbiamo creato un profilo per il tuo ristorante. Ora puoi creare la piantina.",
-                  });
-                } catch (e) {
-                  console.error("Error creating default restaurant: ", e);
-                  toast({
-                    title: "Errore di creazione",
-                    description: "Impossibile creare un ristorante di default.",
-                    variant: "destructive"
-                  });
-                } finally {
-                  setLoading(false);
-                }
-            } else {
-              setLoading(false);
-            }
         }
+        setLoading(false);
       }).catch(err => {
         console.error("Error fetching ristoranteId: ", err);
         setLoading(false);
@@ -78,6 +38,8 @@ export default function FloorPlanPage() {
           variant: "destructive"
         })
       });
+    } else if (!user) {
+      setLoading(false);
     }
   }, [user, firestore, toast]);
 
@@ -193,9 +155,13 @@ export default function FloorPlanPage() {
           ) : ristoranteId ? (
             <FloorPlanEditor ref={editorRef} ristoranteId={ristoranteId} />
           ) : (
-             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8">
-                <p className="font-semibold">Ristorante non trovato.</p>
-                <p className="text-sm">Si è verificato un errore nel caricamento del tuo ristorante. Riprova o contatta il supporto.</p>
+             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 gap-4">
+                <Wrench className="w-16 h-16 text-primary/70" />
+                <p className="font-semibold text-lg">Profilo Ristorante non trovato</p>
+                <p className="text-sm max-w-md">Sembra che il tuo profilo ristorante non sia stato ancora creato. Per favore, completa il processo di onboarding per poter creare e modificare la tua piantina.</p>
+                <Button asChild>
+                  <Link href="/onboarding">Vai alla Configurazione</Link>
+                </Button>
               </div>
           )}
         </div>
