@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useFirestore, useUser } from '@/firebase';
-import { collection, query, where, getDocs, Timestamp, doc, getDoc } from 'firebase/firestore';
+import { useState, useMemo, useEffect } from 'react';
+import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, Timestamp } from 'firebase/firestore';
 import type { Ristorante, Prenotazione, Tavolo, Zona, Muro, DailyOpeningHours } from '@/lib/types';
 import { format, startOfWeek, addDays, isSameDay, getDay } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -28,7 +28,6 @@ import {
 
 interface ReadOnlyTableProps extends Tavolo {
   status?: 'free' | 'booked';
-  bookingDetails?: Prenotazione;
 }
 
 const ReadOnlyTable = ({ x, y, width, height, rotation, type, number, capienza, status }: ReadOnlyTableProps) => {
@@ -82,17 +81,61 @@ export default function ReservationsPage() {
   const { user } = useUser();
   const firestore = useFirestore();
 
-  const [loading, setLoading] = useState(true);
-  const [ristorante, setRistorante] = useState<Ristorante | null>(null);
-  const [tavoli, setTavoli] = useState<Tavolo[]>([]);
-  const [zone, setZone] = useState<Zona[]>([]);
-  const [muri, setMuri] = useState<Muro[]>([]);
-  const [openingHours, setOpeningHours] = useState<DailyOpeningHours[]>([]);
-  const [reservations, setReservations] = useState<Prenotazione[]>([]);
-
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+
+  // Fetch Ristorante
+  const ristoranteQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(collection(firestore, 'ristoranti'), where('proprietarioUid', '==', user.uid));
+  }, [user, firestore]);
+  const { data: ristorantiData, isLoading: isLoadingRistorante } = useCollection<Ristorante>(ristoranteQuery);
+  const ristorante = useMemo(() => (ristorantiData && ristorantiData.length > 0 ? ristorantiData[0] : null), [ristorantiData]);
+  const ristoranteId = ristorante?.id;
+
+  // Fetch Subcollections
+  const tavoliQuery = useMemoFirebase(() => ristoranteId ? collection(firestore, 'ristoranti', ristoranteId, 'tavoli') : null, [firestore, ristoranteId]);
+  const { data: tavoliData, isLoading: isLoadingTavoli } = useCollection<Tavolo>(tavoliQuery);
+  const tavoli = tavoliData || [];
+
+  const zoneQuery = useMemoFirebase(() => ristoranteId ? collection(firestore, 'ristoranti', ristoranteId, 'zone') : null, [firestore, ristoranteId]);
+  const { data: zoneRaw, isLoading: isLoadingZone } = useCollection<any>(zoneQuery);
+  
+  const muriQuery = useMemoFirebase(() => ristoranteId ? collection(firestore, 'ristoranti', ristoranteId, 'muri') : null, [firestore, ristoranteId]);
+  const { data: muriRaw, isLoading: isLoadingMuri } = useCollection<any>(muriQuery);
+
+  const hoursQuery = useMemoFirebase(() => ristoranteId ? collection(firestore, 'ristoranti', ristoranteId, 'dailyOpeningHours') : null, [firestore, ristoranteId]);
+  const { data: openingHours, isLoading: isLoadingHours } = useCollection<DailyOpeningHours>(hoursQuery);
+
+  const reservationsQuery = useMemoFirebase(() => ristoranteId ? collection(firestore, 'ristoranti', ristoranteId, 'prenotazioni') : null, [firestore, ristoranteId]);
+  const { data: reservationsRaw, isLoading: isLoadingReservations } = useCollection<any>(reservationsQuery);
+
+  const loading = isLoadingRistorante || isLoadingTavoli || isLoadingZone || isLoadingMuri || isLoadingHours || isLoadingReservations;
+
+  // Process raw data
+  const zone = useMemo(() => {
+    if (!zoneRaw) return [];
+    return zoneRaw.map(d => {
+      const path = (d.pathX || []).map((x: number, i: number) => ({ x, y: (d.pathY || [])[i] ?? 0 }));
+      return { id: d.id, path, nome: d.nome, colore: d.colore } as Zona;
+    })
+  }, [zoneRaw]);
+
+  const muri = useMemo(() => {
+    if (!muriRaw) return [];
+    return muriRaw.map(d => {
+      const points = (d.pointsX || []).map((x: number, i: number) => ({ x, y: (d.pointsY || [])[i] ?? 0 }));
+      return { id: d.id, points, spessore: d.spessore } as Muro;
+    })
+  }, [muriRaw]);
+
+  const reservations = useMemo(() => {
+    if (!reservationsRaw) return [];
+    return reservationsRaw.map(d => {
+      return { ...d, data: (d.data as Timestamp).toDate() } as Prenotazione;
+    })
+  }, [reservationsRaw]);
 
   const weekStartsOn = 1; // Monday
   const weekDays = useMemo(() => {
@@ -100,59 +143,8 @@ export default function ReservationsPage() {
     return Array.from({ length: 7 }).map((_, i) => addDays(start, i));
   }, [currentDate]);
 
-  // Data fetching effect
-  useEffect(() => {
-    if (!user || !firestore) return;
-
-    setLoading(true);
-    const fetchAllData = async () => {
-      try {
-        const q = query(collection(firestore, 'ristoranti'), where('proprietarioUid', '==', user.uid));
-        const snapshot = await getDocs(q);
-        if (snapshot.empty) {
-          setLoading(false);
-          return;
-        }
-        const ristoranteDoc = snapshot.docs[0];
-        const ristoranteData = { id: ristoranteDoc.id, ...ristoranteDoc.data() } as Ristorante;
-        setRistorante(ristoranteData);
-        const ristoranteId = ristoranteDoc.id;
-
-        const [tavoliSnap, zoneSnap, muriSnap, hoursSnap, reservationsSnap] = await Promise.all([
-          getDocs(collection(firestore, 'ristoranti', ristoranteId, 'tavoli')),
-          getDocs(collection(firestore, 'ristoranti', ristoranteId, 'zone')),
-          getDocs(collection(firestore, 'ristoranti', ristoranteId, 'muri')),
-          getDocs(collection(firestore, 'ristoranti', ristoranteId, 'dailyOpeningHours')),
-          getDocs(collection(firestore, 'ristoranti', ristoranteId, 'prenotazioni')),
-        ]);
-
-        setTavoli(tavoliSnap.docs.map(d => ({ id: d.id, ...d.data() } as Tavolo)));
-        setZone(zoneSnap.docs.map(d => {
-            const data = d.data();
-            const path = (data.pathX || []).map((x: number, i: number) => ({ x, y: (data.pathY || [])[i] ?? 0 }));
-            return { id: d.id, path, nome: data.nome, colore: data.colore } as Zona;
-        }));
-        setMuri(muriSnap.docs.map(d => {
-            const data = d.data();
-            const points = (data.pointsX || []).map((x: number, i: number) => ({ x, y: (data.pointsY || [])[i] ?? 0 }));
-            return { id: d.id, points, spessore: data.spessore } as Muro;
-        }));
-        setOpeningHours(hoursSnap.docs.map(d => ({ id: d.id, ...d.data() } as DailyOpeningHours)));
-        setReservations(reservationsSnap.docs.map(d => {
-          const data = d.data();
-          return { id: d.id, ...data, data: (data.data as Timestamp).toDate() } as Prenotazione;
-        }));
-        
-      } catch (error) {
-        console.error("Error fetching reservation data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAllData();
-  }, [user, firestore]);
-
   const timeSlots = useMemo(() => {
+    if (!openingHours) return [];
     const dayIndex = getDay(selectedDate);
     const dayName = ['domenica', 'lunedi', 'martedi', 'mercoledi', 'giovedi', 'venerdi', 'sabato'][dayIndex];
     
@@ -181,14 +173,16 @@ export default function ReservationsPage() {
   useEffect(() => {
     // When selected day changes, select the first available time slot automatically
     if (timeSlots.length > 0) {
-      setSelectedTime(timeSlots[0]);
+      if (!selectedTime || !timeSlots.includes(selectedTime)) {
+        setSelectedTime(timeSlots[0]);
+      }
     } else {
       setSelectedTime(null);
     }
-  }, [timeSlots]);
+  }, [timeSlots, selectedTime]);
 
   const reservationsForSelectedSlot = useMemo(() => {
-    if (!selectedTime) return [];
+    if (!selectedTime || !reservations) return [];
     return reservations.filter(r => isSameDay(r.data, selectedDate) && r.ora === selectedTime);
   }, [reservations, selectedDate, selectedTime]);
 
@@ -296,7 +290,6 @@ export default function ReservationsPage() {
                             key={table.id}
                             {...table}
                             status={booking ? 'booked' : 'free'}
-                            bookingDetails={booking as Prenotazione | undefined}
                         />
                     })}
                 </svg>
