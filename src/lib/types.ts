@@ -58,7 +58,7 @@ export type Prenotazione = {
     telefono: string;
     email?: string;
   };
-  data: Timestamp;
+  data: Timestamp | Date; // Allow Date for client-side manipulation
   ora: string;
   tavoloId: string;
   numeroPersone: number;
