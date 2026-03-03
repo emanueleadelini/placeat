@@ -413,11 +413,28 @@ export const FloorPlanEditor = forwardRef(function FloorPlanEditor(
     };
 
     const deleteZone = (id: string) => {
-        setZones(currentZones => currentZones.filter(z => z.id !== id));
+        const zoneToDelete = zones.find(z => z.id === id);
+        if (!zoneToDelete) return;
+    
+        const remainingZones = zones.filter(z => z.id !== id);
+        const isLastShapeForThisZoneName = !remainingZones.some(z => z.nome === zoneToDelete.nome);
+    
+        setZones(remainingZones);
+        
+        if (isLastShapeForThisZoneName) {
+            // Un-assign tables from this zone name as it no longer exists
+            setTables(currentTables => currentTables.map(t => {
+                if (t.zona === zoneToDelete.nome) {
+                    return { ...t, zona: undefined };
+                }
+                return t;
+            }));
+        }
+    
         if (selectedElement === id) {
             setSelectedElement(null);
         }
-    }
+    };
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -452,7 +469,7 @@ export const FloorPlanEditor = forwardRef(function FloorPlanEditor(
             }
             const newTable = {
                 id: `tavolo-${Date.now()}`,
-                numero: tables.length + 1,
+                numero: tables.length > 0 ? Math.max(...tables.map(t => t.numero || 0)) + 1 : 1,
                 x: pos.x,
                 y: pos.y,
                 width: 80,
@@ -618,6 +635,25 @@ export const FloorPlanEditor = forwardRef(function FloorPlanEditor(
             setPreviewShape(null);
             setTool('select');
             return;
+        }
+
+        if (interaction.type === 'move-table' && interaction.id) {
+            const movedTable = tables.find(t => t.id === interaction.id);
+
+            if (movedTable) {
+                let newZoneName: string | undefined = undefined;
+                // Check from top-most zone shape
+                for (const zone of [...zones].reverse()) {
+                    if (isPointInPolygon({x: movedTable.x, y: movedTable.y}, zone.path)) {
+                        newZoneName = zone.nome;
+                        break;
+                    }
+                }
+                // Update table's zone if it's different from the current one.
+                if (movedTable.zona !== newZoneName) {
+                    updateTable(interaction.id, { zona: newZoneName });
+                }
+            }
         }
 
         if (interaction.type !== 'none') {
