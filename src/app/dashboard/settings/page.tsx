@@ -207,10 +207,9 @@ export default function SettingsPage() {
             </div>
             
             <Tabs defaultValue="ristorante">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="ristorante">Ristorante</TabsTrigger>
                     <TabsTrigger value="piano">Piano e Fatturazione</TabsTrigger>
-                    <TabsTrigger value="reviewflow">ReviewFlow</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="ristorante" className="mt-6 grid gap-6">
@@ -318,7 +317,7 @@ export default function SettingsPage() {
                     </Card>
                 </TabsContent>
 
-                <TabsContent value="piano" className="mt-6">
+                <TabsContent value="piano" className="mt-6 space-y-6">
                     <Card>
                         <CardHeader>
                             <CardTitle>Il Tuo Piano</CardTitle>
@@ -333,30 +332,28 @@ export default function SettingsPage() {
                             </div>
                         </CardContent>
                     </Card>
-                </TabsContent>
 
-                <TabsContent value="reviewflow" className="mt-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Configurazione ReviewFlow</CardTitle>
-                            <CardDescription>Personalizza come e quando richiedere recensioni.</CardDescription>
+                            <CardTitle>Funzionalità Aggiuntive</CardTitle>
+                            <CardDescription>Accedi alle impostazioni avanzate.</CardDescription>
                         </CardHeader>
-                        <CardContent className="grid gap-6">
-                            <div className="grid gap-2">
-                                <Label htmlFor="google-link">Link Recensioni Google My Business</Label>
-                                <Input id="google-link" placeholder="https://g.page/r/..../review" />
-                            </div>
-                            <div className="grid gap-4">
-                                <Label>Quando inviare la richiesta?</Label>
-                                <div className="flex items-center gap-4">
-                                    <Slider defaultValue={[24]} max={72} step={1} className="flex-1" />
-                                    <div className="font-bold w-12 text-center">24h</div>
+                        <CardContent className="space-y-4">
+                            <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                                <div>
+                                    <h3 className="font-medium">ReviewFlow</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Configura l&apos;invio automatico delle richieste di recensione
+                                    </p>
                                 </div>
-                                <p className="text-sm text-muted-foreground -mt-2">Ore dopo il termine della prenotazione.</p>
+                                <Button variant="outline" onClick={() => window.location.href = '/dashboard/settings/reviewflow'}>
+                                    Configura
+                                </Button>
                             </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
+
             </Tabs>
         </div>
     )

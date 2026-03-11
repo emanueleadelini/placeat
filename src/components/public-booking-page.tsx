@@ -28,8 +28,8 @@ interface ReadOnlyTableProps extends Tavolo {
 
 
 // Simplified read-only version of table contents
-const ReadOnlyTable = ({ x, y, width, height, rotation, type, number, capienza, isSelectable, isSelected, isUnavailable, onClick }: ReadOnlyTableProps) => {
-  const isRound = type === 'rotondo';
+const ReadOnlyTable = ({ x, y, width, height, rotation, tipo, numero, capienza, isSelectable, isSelected, isUnavailable, onClick }: ReadOnlyTableProps) => {
+  const isRound = tipo === 'rotondo';
   
   return (
      <g 
@@ -56,7 +56,7 @@ const ReadOnlyTable = ({ x, y, width, height, rotation, type, number, capienza, 
         strokeWidth={isSelected ? 2 : 1}
       />
       <text textAnchor="middle" dy=".3em" className="fill-foreground font-bold text-sm select-none pointer-events-none">
-        {number}
+        {numero}
       </text>
        <text textAnchor="middle" dy="1.5em" className="fill-muted-foreground font-medium text-xs select-none pointer-events-none">
         {capienza} posti

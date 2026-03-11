@@ -35,6 +35,26 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // --------------------------------
+    // Admin Access Functions
+    // --------------------------------
+    
+    /**
+     * Checks if the authenticated user is a super admin.
+     */
+    function isSuperAdmin() {
+      return isSignedIn() && 
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    
+    /**
+     * Checks if admin has specific role.
+     */
+    function hasAdminRole(allowedRoles) {
+      let adminDoc = getAfter(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return isSuperAdmin() && adminDoc.data.ruolo in allowedRoles;
+    }
+
+    // --------------------------------
     // Helper Functions
     // --------------------------------
 
@@ -43,6 +63,14 @@ service cloud.firestore {
      */
     function isSignedIn() {
       return request.auth != null;
+    }
+
+    /**
+     * Checks if the authenticated user is a super admin.
+     */
+    function isSuperAdmin() {
+      return isSignedIn() && 
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
     /**
@@ -239,6 +267,58 @@ service cloud.firestore {
         allow create: if isRequestingOwner(request.resource.data) && isParentRistoranteOnCreate(ristoranteId);
         allow update: if isExistingResourceOwner(resource) && isOwnerIdImmutable(resource) && isParentRistoranteImmutable(resource);
         allow delete: if isExistingResourceOwner(resource);
+      }
+    }
+    
+    // --------------------------------
+    // Admin Collection Rules
+    // --------------------------------
+    
+    /**
+     * @description Secures the admin users collection.
+     * @path /admins/{adminId}
+     * @allow Only existing super admins can manage other admins.
+     */
+    match /admins/{adminId} {
+      allow get: if isSuperAdmin();
+      allow list: if isSuperAdmin();
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+    
+    /**
+     * @description Secures platform statistics.
+     * @path /platform/stats
+     * @allow Only super admins can read/update platform stats.
+     */
+    match /platform/stats {
+      allow get: if isSuperAdmin();
+      allow list: if isSuperAdmin();
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+    
+    // --------------------------------
+    // Admin Override Rules for Restaurants
+    // Admins can read/write all restaurant data
+    // --------------------------------
+    
+    match /ristoranti/{ristoranteId} {
+      allow get: if isSuperAdmin() || true;
+      allow list: if isSuperAdmin() || true;
+      allow create: if isSuperAdmin() || isRequestingOwner(request.resource.data);
+      allow update: if isSuperAdmin() || (isExistingResourceOwner(resource) && isOwnerIdImmutable(resource));
+      allow delete: if isSuperAdmin() || isExistingResourceOwner(resource);
+      
+      // Admin access to all subcollections
+      match /{document=**} {
+        allow get: if isSuperAdmin() || isResourceOwner(resource);
+        allow list: if isSuperAdmin() || isSignedIn();
+        allow create: if isSuperAdmin() || isRequestingOwner(request.resource.data);
+        allow update: if isSuperAdmin() || (isExistingResourceOwner(resource) && isOwnerIdImmutable(resource));
+        allow delete: if isSuperAdmin() || isExistingResourceOwner(resource);
       }
     }
   }

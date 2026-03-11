@@ -35,6 +35,7 @@ import {
   Star,
   User,
   Eye,
+  BarChart3,
 } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useAuth, useUser, useFirestore } from '@/firebase';
@@ -51,6 +52,11 @@ const navItems = [
     href: '/dashboard/floor-plan',
     icon: LayoutGrid,
     label: 'Piantina',
+  },
+  {
+    href: '/dashboard/analytics',
+    icon: BarChart3,
+    label: 'Analytics',
   },
   {
     href: '/dashboard/reviews',

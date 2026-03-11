@@ -1,105 +1,77 @@
-'use client';
+import { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import RistoranteClient from './ristorante-client';
+import { getRestaurantById } from './actions';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { useFirestore } from '@/firebase';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
-import type { Ristorante, Tavolo, Zona, Muro, DailyOpeningHours } from '@/lib/types';
-import PublicBookingPage from '@/components/public-booking-page';
-import { Loader2 } from 'lucide-react';
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://placeat.app';
 
-export default function RistorantePage() {
-  const { ristoranteId } = useParams<{ ristoranteId: string }>();
-  const firestore = useFirestore();
+interface Props {
+  params: Promise<{
+    ristoranteId: string;
+  }>;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { ristoranteId } = await params;
   
-  const [ristorante, setRistorante] = useState<Ristorante | null>(null);
-  const [tavoli, setTavoli] = useState<Tavolo[]>([]);
-  const [zone, setZone] = useState<Zona[]>([]);
-  const [muri, setMuri] = useState<Muro[]>([]);
-  const [openingHours, setOpeningHours] = useState<DailyOpeningHours[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  try {
+    const ristorante = await getRestaurantById(ristoranteId);
+    
+    if (!ristorante) {
+      return {
+        title: 'Ristorante non trovato | Placeat',
+        description: 'Il ristorante che stai cercando non è disponibile.',
+      };
+    }
 
-  useEffect(() => {
-    if (!ristoranteId || !firestore) return;
-
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const ristoranteRef = doc(firestore, 'ristoranti', ristoranteId);
-        const ristoranteSnap = await getDoc(ristoranteRef);
-
-        if (!ristoranteSnap.exists()) {
-          setError('Ristorante non trovato.');
-          setLoading(false);
-          return;
-        }
-        setRistorante({ id: ristoranteSnap.id, ...ristoranteSnap.data() } as Ristorante);
-
-        const [tavoliSnap, zoneSnap, muriSnap, hoursSnap] = await Promise.all([
-            getDocs(collection(firestore, 'ristoranti', ristoranteId, 'tavoli')),
-            getDocs(collection(firestore, 'ristoranti', ristoranteId, 'zone')),
-            getDocs(collection(firestore, 'ristoranti', ristoranteId, 'muri')),
-            getDocs(collection(firestore, 'ristoranti', ristoranteId, 'dailyOpeningHours')),
-        ]);
-        
-        setTavoli(tavoliSnap.docs.map(d => ({ id: d.id, ...d.data() } as Tavolo)));
-
-        const zoneData = zoneSnap.docs.map(d => {
-            const data = d.data();
-            const path = (data.pathX || []).map((x: number, i: number) => ({ x, y: (data.pathY || [])[i] ?? 0 }));
-            return { id: d.id, path, nome: data.nome, colore: data.colore } as Zona;
-        });
-        setZone(zoneData);
-        
-        const muriData = muriSnap.docs.map(d => {
-            const data = d.data();
-            const points = (data.pointsX || []).map((x: number, i: number) => ({ x, y: (data.pointsY || [])[i] ?? 0 }));
-            return { id: d.id, points, spessore: data.spessore } as Muro;
-        });
-        setMuri(muriData);
-
-        setOpeningHours(hoursSnap.docs.map(d => ({ id: d.id, ...d.data() } as DailyOpeningHours)));
-
-      } catch (err) {
-        console.error("Error fetching public restaurant data:", err);
-        setError("Impossibile caricare i dati del ristorante.");
-      } finally {
-        setLoading(false);
-      }
+    const restaurantName = ristorante.nome || 'Ristorante';
+    const restaurantType = ristorante.tipo ? ristorante.tipo.charAt(0).toUpperCase() + ristorante.tipo.slice(1) : 'Ristorante';
+    const restaurantAddress = ristorante.indirizzo || '';
+    
+    return {
+      title: `${restaurantName} - Prenota il tuo tavolo`,
+      description: `Prenota il tuo tavolo da ${restaurantName}. ${restaurantType} su Placeat. Visualizza la disponibilità e prenota online in pochi click.`,
+      keywords: [
+        ristorante.nome,
+        ristorante.tipo,
+        'prenotazione ristorante',
+        'prenota tavolo',
+        'ristorante online',
+        ...(ristorante.indirizzo ? [ristorante.indirizzo] : []),
+      ].filter(Boolean),
+      openGraph: {
+        title: `${restaurantName} - Prenota il tuo tavolo | Placeat`,
+        description: `Prenota il tuo tavolo da ${restaurantName}. ${restaurantType}${restaurantAddress ? ` a ${restaurantAddress}` : ''}.`,
+        url: `${SITE_URL}/ristorante/${ristoranteId}`,
+        images: [
+          {
+            url: `${SITE_URL}/og-restaurant.jpg`,
+            width: 1200,
+            height: 630,
+            alt: `${restaurantName} - Prenotazioni su Placeat`,
+          },
+        ],
+      },
+      twitter: {
+        title: `${restaurantName} - Prenota il tuo tavolo | Placeat`,
+        description: `Prenota il tuo tavolo da ${restaurantName}.`,
+        images: [`${SITE_URL}/og-restaurant.jpg`],
+      },
+      alternates: {
+        canonical: `${SITE_URL}/ristorante/${ristoranteId}`,
+      },
     };
-
-    fetchData();
-  }, [ristoranteId, firestore]);
-
-  if (loading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
+  } catch (error) {
+    console.error('Error generating metadata:', error);
+    return {
+      title: 'Ristorante | Placeat',
+      description: 'Visualizza i dettagli del ristorante e prenota il tuo tavolo.',
+    };
   }
+}
 
-  if (error) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center text-center">
-        <p className="text-destructive">{error}</p>
-      </div>
-    );
-  }
-
-  if (!ristorante) {
-    return null;
-  }
-
-  return (
-    <PublicBookingPage 
-      ristorante={ristorante}
-      tavoli={tavoli}
-      zone={zone}
-      muri={muri}
-      openingHours={openingHours}
-    />
-  );
+export default async function RistorantePage({ params }: Props) {
+  const { ristoranteId } = await params;
+  
+  return <RistoranteClient ristoranteId={ristoranteId} />;
 }

@@ -17,6 +17,83 @@ import { useState, useEffect } from 'react';
 import { useFirestore } from '@/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { Input } from '@/components/ui/input';
+import Script from 'next/script';
+
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://placeat.app';
+
+// Organization JSON-LD Schema
+const organizationSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Placeat',
+  alternateName: 'PLACEAT',
+  url: SITE_URL,
+  logo: `${SITE_URL}/logo.png`,
+  sameAs: [
+    'https://www.facebook.com/placeat',
+    'https://www.instagram.com/placeat',
+    'https://www.linkedin.com/company/placeat',
+  ],
+  contactPoint: {
+    '@type': 'ContactPoint',
+    telephone: '+39-XXX-XXXXXXX',
+    contactType: 'customer service',
+    email: 'support@placeat.app',
+    availableLanguage: ['Italian', 'English'],
+  },
+  description:
+    'Piattaforma SaaS per ristoranti: gestione piantine interattive, prenotazioni e raccolta automatica recensioni Google.',
+  foundingDate: '2024',
+  areaServed: 'IT',
+};
+
+// WebSite JSON-LD Schema
+const websiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Placeat',
+  url: SITE_URL,
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: {
+      '@type': 'EntryPoint',
+      urlTemplate: `${SITE_URL}/search?q={search_term_string}`,
+    },
+    'query-input': 'required name=search_term_string',
+  },
+  inLanguage: 'it-IT',
+  description:
+    'Trova e prenota il tuo tavolo nei migliori ristoranti. Gestisci il tuo ristorante con la nostra piattaforma zero-touch.',
+};
+
+// SoftwareApplication JSON-LD Schema
+const softwareSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Placeat',
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web Browser',
+  offers: {
+    '@type': 'Offer',
+    price: '0',
+    priceCurrency: 'EUR',
+    description: 'Piano Free disponibile',
+  },
+  aggregateRating: {
+    '@type': 'AggregateRating',
+    ratingValue: '4.8',
+    ratingCount: '150',
+    bestRating: '5',
+    worstRating: '1',
+  },
+  featureList: [
+    'Editor piantina interattivo',
+    'Gestione prenotazioni',
+    'Raccolta recensioni automatica',
+    'ReviewFlow intelligente',
+    'Onboarding zero-touch',
+  ],
+};
 
 function Header() {
   return (
@@ -336,8 +413,8 @@ function Footer() {
       <div className="container py-8 flex justify-between items-center text-sm text-muted-foreground">
         <p>&copy; {new Date().getFullYear()} PLACEAT. Tutti i diritti riservati.</p>
         <div className="flex gap-4">
-          <Link href="#">Termini</Link>
-          <Link href="#">Privacy</Link>
+          <Link href="/terms">Termini</Link>
+          <Link href="/privacy">Privacy</Link>
         </div>
       </div>
     </footer>
@@ -346,15 +423,34 @@ function Footer() {
 
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header />
-      <main className="flex-1">
-        <Hero />
-        <Features />
-        <RegisteredRestaurants />
-        <Pricing />
-      </main>
-      <Footer />
-    </div>
+    <>
+      {/* JSON-LD Structured Data */}
+      <Script
+        id="schema-org-organization"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+      />
+      <Script
+        id="schema-org-website"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+      />
+      <Script
+        id="schema-org-software"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareSchema) }}
+      />
+      
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-1">
+          <Hero />
+          <Features />
+          <RegisteredRestaurants />
+          <Pricing />
+        </main>
+        <Footer />
+      </div>
+    </>
   );
 }

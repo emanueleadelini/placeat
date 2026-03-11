@@ -82,3 +82,92 @@ export type Zona = {
     colore: string;
     path: { x: number; y: number }[];
 }
+
+export type AdminUser = {
+  id: string;
+  email: string;
+  nome: string;
+  cognome: string;
+  ruolo: 'superadmin' | 'admin' | 'support';
+  createdAt: Timestamp;
+  lastLoginAt?: Timestamp;
+  attivo: boolean;
+}
+
+export type PlatformStats = {
+  totalRestaurants: number;
+  totalReservations: number;
+  totalRevenue: number;
+  activeUsers: number;
+  trialUsers: number;
+  payingUsers: number;
+  churnRate: number;
+  mrr: number; // Monthly Recurring Revenue
+  updatedAt: Timestamp;
+}
+
+export type SubscriptionPlan = 'free' | 'pro' | 'multi';
+
+export type Subscription = {
+  id: string;
+  ristoranteId: string;
+  stripeCustomerId: string;
+  stripeSubscriptionId?: string;
+  stripePriceId?: string;
+  plan: SubscriptionPlan;
+  status: 'active' | 'canceled' | 'incomplete' | 'past_due' | 'unpaid';
+  currentPeriodStart: Timestamp;
+  currentPeriodEnd: Timestamp;
+  cancelAtPeriodEnd: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export type StripeCheckoutSession = {
+  id: string;
+  url: string;
+  ristoranteId: string;
+  plan: SubscriptionPlan;
+  status: 'pending' | 'completed' | 'expired';
+  createdAt: Timestamp;
+  expiresAt: Timestamp;
+}
+
+export interface ReviewFlowConfig {
+  id: string;
+  ristoranteId: string;
+  enabled: boolean;
+  delayHours: number; // 0, 24, 72, 168
+  customMessage?: string;
+  googleReviewLink?: string;
+  tripadvisorLink?: string;
+  theforkLink?: string;
+  sendEmail: boolean;
+  showQRCode: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface ReviewRequest {
+  id: string;
+  ristoranteId: string;
+  prenotazioneId: string;
+  clienteEmail: string;
+  clienteNome: string;
+  status: 'pending' | 'sent' | 'clicked' | 'completed' | 'failed';
+  sentAt?: Timestamp;
+  clickedAt?: Timestamp;
+  completedAt?: Timestamp;
+  errorMessage?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface ReviewStats {
+  totalSent: number;
+  totalClicked: number;
+  totalCompleted: number;
+  clickRate: number;
+  conversionRate: number;
+  thisMonthSent: number;
+}
