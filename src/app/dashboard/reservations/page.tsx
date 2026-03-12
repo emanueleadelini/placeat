@@ -32,7 +32,7 @@ import {
   LayoutGrid,
   List,
   Expand,
-  Compress
+  Shrink
 } from 'lucide-react';
 
 import { Badge } from "@/components/ui/badge";
@@ -714,7 +714,7 @@ const FloorPlanViewer = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg" onClick={toggleFullscreen}>
-                {isFullscreen ? <Compress className="h-4 w-4" /> : <Expand className="h-4 w-4" />}
+                {isFullscreen ? <Shrink className="h-4 w-4" /> : <Expand className="h-4 w-4" />}
               </Button>
             </TooltipTrigger>
             <TooltipContent>{isFullscreen ? 'Esci fullscreen' : 'Fullscreen'}</TooltipContent>
