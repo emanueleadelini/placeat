@@ -32,7 +32,8 @@ import {
   LayoutGrid,
   List,
   Expand,
-  Minimize2
+  Minimize2,
+  Map,
 } from 'lucide-react';
 
 import { Badge } from "@/components/ui/badge";
@@ -1109,38 +1110,36 @@ export default function ReservationsPage() {
 
   return (
     <TooltipProvider>
-      <div className="space-y-6 max-w-[1600px] mx-auto">
+      <div className="flex flex-col flex-1 min-h-0 gap-4 max-w-[1600px] mx-auto w-full">
+
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shrink-0">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Prenotazioni</h1>
-            <p className="text-muted-foreground">
-              Gestisci le prenotazioni per <span className="font-semibold text-foreground">{ristorante.nome}</span>
+            <p className="text-muted-foreground text-sm">
+              {ristorante.nome}
             </p>
           </div>
-          
           {selectedTime && (
-            <div className="flex flex-wrap items-center gap-3">
-              <Card className="px-4 py-2 border-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <Armchair className="h-4 w-4 text-emerald-500" />
-                  <span className="text-muted-foreground">Tavoli:</span>
-                  <span className="font-bold">{stats.bookedTables}/{stats.totalTables}</span>
-                </div>
-              </Card>
-              <Card className="px-4 py-2 border-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <Users className="h-4 w-4 text-primary" />
-                  <span className="text-muted-foreground">Coperti:</span>
-                  <span className="font-bold">{stats.totalCovers}</span>
-                </div>
-              </Card>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-3 py-1 text-xs font-semibold">
+                <Armchair className="h-3.5 w-3.5" />
+                {stats.availableTables} liberi
+              </span>
+              <span className="inline-flex items-center gap-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-full px-3 py-1 text-xs font-semibold">
+                <LayoutGrid className="h-3.5 w-3.5" />
+                {stats.bookedTables} occupati
+              </span>
+              <span className="inline-flex items-center gap-1.5 bg-muted text-muted-foreground rounded-full px-3 py-1 text-xs font-medium">
+                <Users className="h-3.5 w-3.5" />
+                {stats.totalCovers} coperti
+              </span>
             </div>
           )}
         </div>
 
         {/* Mobile Tabs */}
-        <div className="lg:hidden">
+        <div className="lg:hidden shrink-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="list" className="flex items-center gap-2">
@@ -1156,13 +1155,14 @@ export default function ReservationsPage() {
         </div>
 
         {/* Main Content */}
-        <div className="grid lg:grid-cols-12 gap-6">
-          {/* Sidebar - sempre visibile su desktop, tab su mobile */}
+        <div className="grid lg:grid-cols-12 gap-6 flex-1 min-h-0">
+
+          {/* Sidebar sinistra — scroll indipendente su desktop */}
           <div className={cn(
-            "lg:col-span-4 xl:col-span-3 space-y-4",
-            activeTab !== 'list' && "hidden lg:block"
+            "lg:col-span-4 xl:col-span-3 flex flex-col gap-4 lg:overflow-y-auto lg:min-h-0",
+            activeTab !== 'list' && "hidden lg:flex"
           )}>
-            <Card className="border-2 shadow-sm">
+            <Card className="border-2 shadow-sm shrink-0">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <CalendarIcon className="h-4 w-4 text-primary" />
@@ -1170,7 +1170,7 @@ export default function ReservationsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <DaySelector 
+                <DaySelector
                   weekDays={weekDays}
                   selectedDate={selectedDate}
                   onSelectDate={setSelectedDate}
@@ -1180,7 +1180,7 @@ export default function ReservationsPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-2 shadow-sm">
+            <Card className="border-2 shadow-sm shrink-0">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Clock className="h-4 w-4 text-primary" />
@@ -1188,7 +1188,7 @@ export default function ReservationsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <TimeSlotSelector 
+                <TimeSlotSelector
                   timeSlots={timeSlots}
                   selectedTime={selectedTime}
                   onSelectTime={setSelectedTime}
@@ -1196,8 +1196,8 @@ export default function ReservationsPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-2 shadow-sm">
-              <CardHeader className="pb-3">
+            <Card className="border-2 shadow-sm flex flex-col flex-1 min-h-0">
+              <CardHeader className="pb-3 shrink-0">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Users className="h-4 w-4 text-primary" />
                   Prenotazioni
@@ -1208,9 +1208,9 @@ export default function ReservationsPage() {
                   )}
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[300px] pr-4">
-                  <ReservationList 
+              <CardContent className="flex-1 min-h-0 pt-0">
+                <ScrollArea className="h-full min-h-[200px] max-h-[400px] pr-4">
+                  <ReservationList
                     reservations={reservationsForSelectedSlot}
                     tavoli={tavoli}
                     getStatusVariant={getStatusVariant}
@@ -1222,17 +1222,17 @@ export default function ReservationsPage() {
             </Card>
           </div>
 
-          {/* Floor Plan - sempre visibile su desktop, tab su mobile */}
+          {/* Piantina — colonna destra, riempie tutto lo spazio */}
           <div className={cn(
-            "lg:col-span-8 xl:col-span-9",
-            activeTab !== 'floorplan' && "hidden lg:block"
+            "lg:col-span-8 xl:col-span-9 flex flex-col min-h-0",
+            activeTab !== 'floorplan' && "hidden lg:flex"
           )}>
-            <Card className="h-full min-h-[500px] lg:min-h-[700px] flex flex-col border-2 shadow-sm">
-              <CardHeader className="pb-3 border-b bg-muted/20">
+            <Card className="flex flex-col flex-1 min-h-[500px] border-2 shadow-sm">
+              <CardHeader className="pb-3 border-b bg-muted/20 shrink-0">
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <div>
                     <CardTitle className="text-base flex items-center gap-2">
-                      <LayoutGrid className="h-4 w-4 text-primary" />
+                      <Map className="h-4 w-4 text-primary" />
                       Piantina del Locale
                     </CardTitle>
                     {selectedTime && (
@@ -1251,8 +1251,8 @@ export default function ReservationsPage() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="flex-1 p-4">
-                <FloorPlanViewer 
+              <CardContent className="flex-1 p-3 min-h-0">
+                <FloorPlanViewer
                   zone={zone}
                   muri={muri}
                   tavoli={tavoli}
@@ -1262,6 +1262,7 @@ export default function ReservationsPage() {
               </CardContent>
             </Card>
           </div>
+
         </div>
       </div>
     </TooltipProvider>
