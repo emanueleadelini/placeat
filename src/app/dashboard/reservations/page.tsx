@@ -1154,12 +1154,12 @@ export default function ReservationsPage() {
           </Tabs>
         </div>
 
-        {/* Main Content */}
-        <div className="grid lg:grid-cols-12 gap-6 flex-1 min-h-0">
+        {/* Main Content — flex invece di grid per propagare correttamente l'altezza */}
+        <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
 
-          {/* Sidebar sinistra — scroll indipendente su desktop */}
+          {/* Sidebar sinistra — larghezza fissa, scroll indipendente */}
           <div className={cn(
-            "lg:col-span-4 xl:col-span-3 flex flex-col gap-4 lg:overflow-y-auto lg:min-h-0",
+            "lg:w-[300px] xl:w-[280px] shrink-0 flex flex-col gap-4 lg:overflow-y-auto lg:min-h-0",
             activeTab !== 'list' && "hidden lg:flex"
           )}>
             <Card className="border-2 shadow-sm shrink-0">
@@ -1222,9 +1222,9 @@ export default function ReservationsPage() {
             </Card>
           </div>
 
-          {/* Piantina — colonna destra, riempie tutto lo spazio */}
+          {/* Piantina — colonna destra, flex-1 occupa tutto lo spazio rimanente */}
           <div className={cn(
-            "lg:col-span-8 xl:col-span-9 flex flex-col min-h-0",
+            "flex flex-col flex-1 min-h-0",
             activeTab !== 'floorplan' && "hidden lg:flex"
           )}>
             <Card className="flex flex-col flex-1 min-h-[500px] border-2 shadow-sm">

@@ -206,16 +206,18 @@ export default function DashboardLayout({
       </Sidebar>
 
       <SidebarInset>
-        <div className="flex flex-col flex-1 min-h-0">
+        {/* h-svh fissa l'altezza al viewport — permette h-full/flex-1 di funzionare nei figli */}
+        <div className="flex flex-col h-svh overflow-hidden">
           {/* Mobile sticky header */}
-          <header className="md:hidden flex items-center justify-between px-4 py-3 border-b bg-background/95 backdrop-blur sticky top-0 z-10 shrink-0">
+          <header className="md:hidden flex items-center justify-between px-4 py-3 border-b bg-background/95 backdrop-blur shrink-0">
             <Link href="/dashboard" className="flex items-center gap-2 font-bold text-lg">
               <DraftingCompass className="w-6 h-6 text-primary" />
               <span>PLACEAT</span>
             </Link>
             <SidebarTrigger />
           </header>
-          <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 lg:p-8">
+          {/* overflow-y-auto: le pagine normali scrollano, quelle full-height si espandono */}
+          <div className="flex flex-col flex-1 min-h-0 overflow-y-auto p-4 md:p-6 lg:p-8">
             {children}
           </div>
         </div>
