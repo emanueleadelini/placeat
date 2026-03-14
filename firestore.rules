@@ -66,14 +66,6 @@ service cloud.firestore {
     }
 
     /**
-     * Checks if the authenticated user is a super admin.
-     */
-    function isSuperAdmin() {
-      return isSignedIn() && 
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
-    }
-
-    /**
      * Checks if the currently authenticated user is the owner of the document being created.
      * Compares the auth UID with the 'proprietarioUid' field in the incoming request data.
      */

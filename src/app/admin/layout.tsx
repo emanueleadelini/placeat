@@ -49,18 +49,6 @@ export default function AdminLayout({
     );
   }
 
-  // Early return per evitare flash di contenuto
-  if (userLoading || adminLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Verifica permessi admin...</p>
-        </div>
-      </div>
-    );
-  }
-
   if (!user || !isAdmin) {
     return null;
   }

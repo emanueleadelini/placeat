@@ -28,7 +28,7 @@ const organizationSchema = {
   name: 'Placeat',
   alternateName: 'PLACEAT',
   url: SITE_URL,
-  logo: `${SITE_URL}/logo.png`,
+  logo: `${SITE_URL}/logo.svg`,
   sameAs: [
     'https://www.facebook.com/placeat',
     'https://www.instagram.com/placeat',
@@ -36,7 +36,6 @@ const organizationSchema = {
   ],
   contactPoint: {
     '@type': 'ContactPoint',
-    telephone: '+39-XXX-XXXXXXX',
     contactType: 'customer service',
     email: 'support@placeat.app',
     availableLanguage: ['Italian', 'English'],

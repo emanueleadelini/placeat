@@ -76,11 +76,11 @@ export const metadata: Metadata = {
       'SaaS B2B per ristoranti: gestione piantine interattive, prenotazioni e raccolta automatica recensioni Google.',
     images: [
       {
-        url: `${SITE_URL}/og-image.jpg`,
+        url: `${SITE_URL}/og-image.svg`,
         width: 1200,
         height: 630,
         alt: 'Placeat - Gestione Tavoli e Recensioni per Ristoranti',
-        type: 'image/jpeg',
+        type: 'image/svg+xml',
       },
     ],
   },
@@ -91,7 +91,7 @@ export const metadata: Metadata = {
     title: `${SITE_NAME} - Gestione Tavoli e Recensioni per Ristoranti`,
     description:
       'SaaS B2B per ristoranti: gestione piantine interattive, prenotazioni e raccolta automatica recensioni Google.',
-    images: [`${SITE_URL}/og-image.jpg`],
+    images: [`${SITE_URL}/og-image.svg`],
   },
   alternates: {
     canonical: SITE_URL,
@@ -99,11 +99,9 @@ export const metadata: Metadata = {
       'it-IT': SITE_URL,
     },
   },
-  verification: {
-    google: 'YOUR_GOOGLE_SEARCH_CONSOLE_VERIFICATION_CODE',
-    // yandex: 'YOUR_YANDEX_VERIFICATION_CODE',
-    // bing: 'YOUR_BING_VERIFICATION_CODE',
-  },
+  // verification: {
+  //   google: 'YOUR_GOOGLE_SEARCH_CONSOLE_VERIFICATION_CODE',
+  // },
   category: 'business',
   classification: 'Software SaaS per Ristoranti',
   referrer: 'origin-when-cross-origin',

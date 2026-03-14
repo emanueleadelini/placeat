@@ -1,9 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { useUser, useDoc } from '@/firebase';
-import { doc } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { useState, useMemo } from 'react';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { collection, query, where, doc } from 'firebase/firestore';
 import type { Ristorante, Subscription } from '@/lib/types';
 import { PricingTable } from '@/components/stripe/pricing-table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -16,23 +15,35 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function BillingPage() {
   const { user } = useUser();
+  const firestore = useFirestore();
   const [loading, setLoading] = useState(false);
 
-  // Get restaurant data
-  const { data: restaurant, isLoading: restaurantLoading } = useDoc<Ristorante>(
-    user ? doc(db, 'ristoranti', 'default') : null
+  // Get restaurant data by owner UID
+  const ristoranteQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(collection(firestore, 'ristoranti'), where('proprietarioUid', '==', user.uid));
+  }, [user, firestore]);
+
+  const { data: ristorantiData, isLoading: restaurantLoading } = useCollection<Ristorante>(ristoranteQuery);
+
+  const restaurant = useMemo(() =>
+    ristorantiData && ristorantiData.length > 0 ? ristorantiData[0] : null,
+    [ristorantiData]
   );
 
   // Get subscription data
-  const { data: subscription } = useDoc<Subscription>(
-    restaurant?.stripeSubscriptionId 
-      ? doc(db, 'subscriptions', restaurant.stripeSubscriptionId) 
-      : null
+  const subscriptionRef = useMemo(() =>
+    restaurant?.stripeSubscriptionId && firestore
+      ? doc(firestore, 'subscriptions', restaurant.stripeSubscriptionId)
+      : null,
+    [restaurant, firestore]
   );
+
+  const { data: subscription } = useDoc<Subscription>(subscriptionRef);
 
   const handleManageSubscription = async () => {
     if (!restaurant?.stripeCustomerId) return;
-    
+
     setLoading(true);
     try {
       const response = await fetch('/api/stripe/portal', {
@@ -103,7 +114,7 @@ export default function BillingPage() {
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-2xl font-bold capitalize">{currentPlan}</span>
                 <Badge variant={restaurant?.stato === 'active' ? 'default' : 'secondary'}>
-                  {restaurant?.stato === 'active' ? 'Attivo' : 
+                  {restaurant?.stato === 'active' ? 'Attivo' :
                    restaurant?.stato === 'trial' ? 'Trial' : 'Free'}
                 </Badge>
               </div>
@@ -114,9 +125,9 @@ export default function BillingPage() {
                 </p>
               )}
             </div>
-            
+
             {currentPlan !== 'free' && (
-              <Button 
+              <Button
                 onClick={handleManageSubscription}
                 disabled={loading}
                 variant="outline"

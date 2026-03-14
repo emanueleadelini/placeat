@@ -1,0 +1,10 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='200' height='60' viewBox='0 0 200 60'>
+  <rect width='200' height='60' rx='8' fill='#0f172a'/>
+  <circle cx='30' cy='30' r='14' fill='none' stroke='#6366f1' stroke-width='3'/>
+  <line x1='30' y1='16' x2='30' y2='10' stroke='#6366f1' stroke-width='3' stroke-linecap='round'/>
+  <line x1='30' y1='44' x2='30' y2='50' stroke='#6366f1' stroke-width='3' stroke-linecap='round'/>
+  <line x1='20' y1='22' x2='15' y2='17' stroke='#6366f1' stroke-width='3' stroke-linecap='round'/>
+  <line x1='40' y1='22' x2='45' y2='17' stroke='#6366f1' stroke-width='3' stroke-linecap='round'/>
+  <circle cx='30' cy='30' r='5' fill='#6366f1'/>
+  <text x='55' y='38' font-family='system-ui,sans-serif' font-weight='700' font-size='22' fill='#ffffff' letter-spacing='1'>PLACEAT</text>
+</svg>

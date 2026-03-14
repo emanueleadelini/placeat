@@ -10,10 +10,9 @@ import type { Prenotazione, Tavolo, Ristorante } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  BarChart3, 
-  Download, 
-  FileText, 
+import {
+  BarChart3,
+  Download,
   Loader2,
   TrendingUp,
   Users,
@@ -173,11 +172,6 @@ export default function AnalyticsPage() {
     }
   }, [filteredReservations, ristorante]);
 
-  // Handle PDF export (placeholder)
-  const handleExportPDF = useCallback(() => {
-    // Placeholder for PDF export
-    alert("Esportazione PDF in arrivo presto!");
-  }, []);
 
   // Show empty state if no reservations
   const hasReservations = allReservations.length > 0;
@@ -247,14 +241,6 @@ export default function AnalyticsPage() {
               <Download className="mr-2 h-4 w-4" />
             )}
             CSV
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportPDF}
-          >
-            <FileText className="mr-2 h-4 w-4" />
-            PDF
           </Button>
         </div>
       </div>
